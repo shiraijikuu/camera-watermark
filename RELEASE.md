@@ -2,6 +2,20 @@
 
 This document describes how to release a new version of Photo Watermark. 本文档说明如何发布 Photo Watermark 新版本。
 
+
+## Version Policy / 版本策略（强制）
+
+- Follow strict SemVer: Major X = breaking, Minor Y = new features, Patch Z = bug fixes only.
+  严格语义化版本：主版本=破坏性变更，次版本=新增功能，修订版本=只修 bug。
+- Small updates may accumulate: bump once per ~10 small updates.
+  小更新可累积：每 10 次小更新升一次版本号。
+- Every version bump MUST update / 每次升版本必须更新：
+  1. Version constant (APP_VERSION for the app; PLUGIN_VERSION for plugins) / 版本号常量
+  2. CHANGELOG.md (new entry at top) / 更新日志顶部新增条目
+  3. Release notes & announcement / 发布说明与更新公告
+  4. Repackage, put packages in releases/vX.Y.Z/, filename includes version / 重新打包并放入对应版本目录
+- Plugins are versioned independently (PLUGIN_VERSION in plugin.py) / 插件独立带版本号。
+
 ## 0. Versioning Rules / 版本规则 (SemVer)
 
 Follow strict semantic versioning x.y.z / 严格遵循语义化版本 x.y.z：

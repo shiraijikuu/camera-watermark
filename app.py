@@ -74,7 +74,7 @@ class PluginAPI:
 
 def load_plugins():
     api = PluginAPI()
-    loaded = []
+    loaded = []      # [(name, version)]
     errors = []
     if not os.path.isdir(PLUGINS_DIR):
         return api, loaded, errors
@@ -90,9 +90,10 @@ def load_plugins():
             spec = importlib.util.spec_from_file_location('cwm_plugin_' + name, main_py)
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
+            _pv = getattr(mod, 'PLUGIN_VERSION', '')
             if hasattr(mod, 'register'):
                 mod.register(api)
-                loaded.append(name)
+                loaded.append((name, str(_pv)))
         except Exception as e:
             errors.append((name, str(e)))
             print(tr('插件加载失败 [%s]: %s') % (name, e))
@@ -101,11 +102,13 @@ def load_plugins():
 
 def reload_plugins():
     """重新扫描并加载插件（插件管理窗口用），返回 (api, names, errors)。"""
-    global PLUGIN_API, PLUGIN_NAMES, PLUGIN_ERRORS, FORMAT_CHOICES
+    global PLUGIN_API, PLUGIN_NAMES, PLUGIN_ERRORS, PLUGIN_VERSIONS, FORMAT_CHOICES
     for m in list(sys.modules):
         if m.startswith('cwm_plugin_'):
             del sys.modules[m]
-    PLUGIN_API, PLUGIN_NAMES, PLUGIN_ERRORS = load_plugins()
+    PLUGIN_API, PLUGIN_LOADED, PLUGIN_ERRORS = load_plugins()
+    PLUGIN_NAMES = [n for n, _v in PLUGIN_LOADED]
+    PLUGIN_VERSIONS = dict(PLUGIN_LOADED)
     FORMAT_CHOICES = [('jpg', 'JPG（可保留EXIF）'), ('png', 'PNG（无损）'), ('webp', 'WebP'), ('bmp', 'BMP')]
     for fname, fspec in PLUGIN_API.formats.items():
         FORMAT_CHOICES.append((fname, fspec['label']))
@@ -115,7 +118,9 @@ def reload_plugins():
 
 
 # ==================== 全局 ====================
-PLUGIN_API, PLUGIN_NAMES, PLUGIN_ERRORS = load_plugins()
+PLUGIN_API, PLUGIN_LOADED, PLUGIN_ERRORS = load_plugins()
+PLUGIN_NAMES = [n for n, _v in PLUGIN_LOADED]
+PLUGIN_VERSIONS = dict(PLUGIN_LOADED)
 
 def _rebuild_plugin_settings():
     global PLUGIN_SETTINGS
@@ -248,14 +253,16 @@ class PluginManagerWindow:
         ttk.Label(top, text=tr('插件 = plugins 里的一个文件夹，内含 plugin.py'),
                   foreground='#888').pack(side='left', padx=10)
 
-        cols = ('name', 'status', 'error')
+        cols = ('name', 'version', 'status', 'error')
         self.tree = ttk.Treeview(self.win, columns=cols, show='headings')
         self.tree.heading('name', text=tr('插件名'))
+        self.tree.heading('version', text=tr('版本'))
         self.tree.heading('status', text=tr('状态'))
         self.tree.heading('error', text=tr('错误信息'))
-        self.tree.column('name', width=180)
-        self.tree.column('status', width=80)
-        self.tree.column('error', width=320)
+        self.tree.column('name', width=150)
+        self.tree.column('version', width=70)
+        self.tree.column('status', width=70)
+        self.tree.column('error', width=260)
         sb = ttk.Scrollbar(self.win, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
         self.tree.pack(side='left', fill='both', expand=True, padx=(6, 0), pady=(0, 6))
@@ -270,11 +277,11 @@ class PluginManagerWindow:
         self.parent._refresh_format_choices()
         self.tree.delete(*self.tree.get_children())
         for name in names:
-            self.tree.insert('', 'end', values=(name, tr('已加载'), ''))
+            self.tree.insert('', 'end', values=(name, PLUGIN_VERSIONS.get(name, ''), tr('已加载'), ''))
         for name, err in errors:
-            self.tree.insert('', 'end', values=(name, tr('加载失败'), err))
+            self.tree.insert('', 'end', values=(name, '', tr('加载失败'), err))
         if not names and not errors:
-            self.tree.insert('', 'end', values=(tr('（无插件）'), '-', ''))
+            self.tree.insert('', 'end', values=(tr('（无插件）'), '', '-', ''))
 
     def open_dir(self):
         try:
