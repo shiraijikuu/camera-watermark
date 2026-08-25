@@ -1,0 +1,2 @@
+pillow>=9.0
+piexif>=1.1.3

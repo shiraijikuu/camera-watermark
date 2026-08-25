@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+config.json
+.pyout/
+.smoke/
+build/
+dist/
+releases/
+开源版/
+fonts/
+*.zip
