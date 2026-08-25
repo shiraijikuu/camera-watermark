@@ -182,3 +182,6 @@ def register(api):
 
 - 插件运行在软件进程内：**请只处理图片/文字数据，不要做危险操作**。
 - 不要修改 `plugins` 以外的文件。
+- **插件商店地址（plugin_store_url / install_url）只支持 HTTPS**：插件是本地执行的 Python 代码，
+  用明文 HTTP 会允许中间人注入任意代码。请始终使用 `https://`。
+- 安装时会校验压缩包内文件路径，**拒绝路径穿越（Zip Slip）**，恶意包无法把文件写到 `plugins/` 之外。

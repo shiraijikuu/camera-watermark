@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import urllib.request
 import zipfile
+import posixpath
 import hashlib
 import time
 
@@ -223,10 +224,11 @@ def build_values(meta, settings):
 
 
 def _version_newer(a, b):
-    """比较版本号，a > b 返回 True。"""
+    """比较版本号，a > b 返回 True。支持 v 前缀（如 v1.2.0）。"""
     def parse(v):
         out = []
-        for part in str(v).replace('-', '.').split('.'):
+        v = str(v).lstrip('vV').replace('-', '.')
+        for part in v.split('.'):
             try:
                 out.append(int(part))
             except ValueError:
@@ -254,6 +256,55 @@ def _write_installed_meta(meta):
         pass
 
 
+def _safe_extract_zip(zip_path, dest):
+    """安全解压：拒绝 Zip Slip（路径穿越 / 绝对路径 / 盘符 / 符号链接逃逸）。"""
+    real_dest = os.path.realpath(dest)
+    with zipfile.ZipFile(zip_path) as z:
+        for m in z.infolist():
+            name = m.filename.replace('\\', '/')
+            parts = posixpath.normpath(name).split('/')
+            if name.startswith('/') or '..' in parts or ':' in name:
+                raise ValueError(tr('非法路径: %s') % name)
+            if m.is_dir() or not name:
+                continue
+            target = os.path.join(real_dest, *parts)
+            if os.path.realpath(target) != os.path.join(real_dest, *parts):
+                raise ValueError(tr('非法路径: %s') % name)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with z.open(m) as src_f, open(target, 'wb') as dst_f:
+                shutil.copyfileobj(src_f, dst_f)
+
+
+def _local_exe_checksum():
+    """当前运行程序 exe 的 SHA-256（仅打包模式；源码模式返回空字符串）。"""
+    if not getattr(sys, 'frozen', False):
+        return ''
+    try:
+        with open(sys.executable, 'rb') as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except Exception:
+        return ''
+
+
+def _check_update_state(latest, current, mchecksum='', lchecksum=''):
+    """主程序更新检测：
+    - 'newer':        清单版本号更高
+    - 'same_content': 版本号相同但发布内容已变化（checksum 不同）
+    - None:           无更新（或清单版本更低 / 未提供清单版本）
+    """
+    if not latest:
+        return None
+    if _version_newer(latest, current):
+        return 'newer'
+    if _version_newer(current, latest):
+        return None
+    m = str(mchecksum or '').strip().lower()
+    l = str(lchecksum or '').strip().lower()
+    if m and l and m != l:
+        return 'same_content'
+    return None
+
+
 def _plugin_update_available(p, installed_meta=None):
     """判断商店里的插件 p 是否有更新：
     1) 商店版本号 > 本地已装版本号；
@@ -269,8 +320,8 @@ def _plugin_update_available(p, installed_meta=None):
     if installed_meta is None:
         installed_meta = _read_installed_meta()
     rec = installed_meta.get(pid, {}) if isinstance(installed_meta, dict) else {}
-    msum = str(p.get('checksum', '') or '').strip()
-    lsum = str(rec.get('checksum', '') or '').strip()
+    msum = str(p.get('checksum', '') or '').strip().lower()
+    lsum = str(rec.get('checksum', '') or '').strip().lower()
     if msum and lsum and msum != lsum:
         return True
     return False
@@ -347,7 +398,7 @@ class PluginManagerWindow:
                     if os.path.isdir(tmp):
                         shutil.rmtree(tmp)
                     os.makedirs(tmp, exist_ok=True)
-                    z.extractall(tmp)
+                    _safe_extract_zip(path, tmp)
                     plugin_py = None
                     for root, dirs, files in os.walk(tmp):
                         if 'plugin.py' in files:
@@ -596,6 +647,9 @@ class PluginStoreWindow:
         if not url:
             self.status.set(tr('未配置插件商店地址（config.json 的 plugin_store_url）'))
             return
+        if url.startswith('http://'):
+            self.status.set(tr('仅支持 HTTPS 插件商店地址（plugin_store_url 必须使用 https://）'))
+            return
         threading.Thread(target=self._load_worker, args=(url,), daemon=True).start()
 
     def _load_worker(self, url):
@@ -654,6 +708,8 @@ class PluginStoreWindow:
         try:
             if not url:
                 raise ValueError('no install_url')
+            if url.startswith('http://'):
+                raise ValueError(tr('仅支持 HTTPS 下载地址（install_url 必须使用 https://）'))
             with urllib.request.urlopen(url, timeout=180) as r:
                 data = r.read()
             if os.path.isdir(tmp):
@@ -662,8 +718,7 @@ class PluginStoreWindow:
             zip_path = os.path.join(tmp, 'plugin.zip')
             with open(zip_path, 'wb') as f:
                 f.write(data)
-            with zipfile.ZipFile(zip_path) as z:
-                z.extractall(tmp)
+            _safe_extract_zip(zip_path, tmp)
             plugin_py = None
             for root, dirs, files in os.walk(tmp):
                 if 'plugin.py' in files:
@@ -678,7 +733,7 @@ class PluginStoreWindow:
             shutil.copytree(folder, target)
             # 记录安装信息（版本 / zip 校验和 / 更新时间），用于商店“更新检测”
             try:
-                checksum = hashlib.sha256(data).hexdigest()
+                checksum = hashlib.sha256(data).hexdigest().lower()
             except Exception:
                 checksum = ''
             meta = _read_installed_meta()
@@ -1298,7 +1353,7 @@ class App:
                                    '在 config.json 中设置 update_url，例如：\n'
                                    'https://example.com/update.json\n\n'
                                    '清单格式（JSON）：\n'
-                                   '{"version":"1.1.0","url":"https://example.com/app.exe","note":"更新说明"}'))
+                                   '{"version":"1.1.0","url":"https://example.com/app.exe","note":"更新说明","checksum":"sha256..."}'))
             return
         self.status_var.set('正在检查更新…')
         threading.Thread(target=self._check_update_worker, args=(url,), daemon=True).start()
@@ -1310,17 +1365,27 @@ class App:
             latest = str(data.get('version', ''))
             dl_url = data.get('url', '')
             note = data.get('note', '')
-            self.msg_q.put(('update_result', (latest, dl_url, note)))
+            mchecksum = str(data.get('checksum', '') or '').strip().lower()
+            self.msg_q.put(('update_result', (latest, dl_url, note, mchecksum)))
         except Exception as e:
-            self.msg_q.put(('update_result', (None, None, str(e))))
+            self.msg_q.put(('update_result', (None, None, str(e), '')))
 
-    def _download_update(self, dl_url, version):
+    def _download_update(self, dl_url, version, expected_checksum=''):
         try:
             upd_dir = os.path.join(APP_DIR, 'updates')
             os.makedirs(upd_dir, exist_ok=True)
             target = os.path.join(upd_dir, 'new_version.exe')
             with urllib.request.urlopen(dl_url, timeout=180) as r, open(target, 'wb') as f:
                 shutil.copyfileobj(r, f)
+            # 下载后校验：清单若带 checksum，则验证下载文件是否一致，避免坏文件覆盖 exe
+            if expected_checksum:
+                try:
+                    with open(target, 'rb') as f:
+                        actual = hashlib.sha256(f.read()).hexdigest()
+                except Exception:
+                    actual = ''
+                if actual.lower() != str(expected_checksum).lower():
+                    raise ValueError(tr('下载文件校验失败（checksum 不匹配）'))
             self.msg_q.put(('update_downloaded', (version, target)))
         except Exception as e:
             self.msg_q.put(('update_downloaded', (None, str(e))))
@@ -1617,17 +1682,24 @@ class App:
                     self.status_var.set('导出失败：%s' % data[1])
                     print(tr('导出失败 %s: %s') % data)
                 elif kind == 'update_result':
-                    latest, dl_url, note = data
+                    latest, dl_url, note, mchecksum = data
                     if not latest:
                         self.status_var.set('检查更新失败')
                         messagebox.showerror(tr('检查更新失败'), str(note))
-                    elif not _version_newer(latest, APP_VERSION):
-                        self.status_var.set('已是最新版本 v' + APP_VERSION)
-                        messagebox.showinfo(tr('检查更新'), tr('当前已是最新版本 v') + APP_VERSION)
                     else:
-                        self.status_var.set('发现新版本 v' + latest)
-                        if messagebox.askyesno(tr('发现新版本'), tr('发现新版本 v%s\n%s\n\n是否立即下载更新？') % (latest, note or '')):
-                            threading.Thread(target=self._download_update, args=(dl_url, latest), daemon=True).start()
+                        state = _check_update_state(latest, APP_VERSION, mchecksum, _local_exe_checksum())
+                        if state is None:
+                            self.status_var.set('已是最新版本 v' + APP_VERSION)
+                            messagebox.showinfo(tr('检查更新'), tr('当前已是最新版本 v') + APP_VERSION)
+                        elif state == 'newer':
+                            self.status_var.set('发现新版本 v' + latest)
+                            if messagebox.askyesno(tr('发现新版本'), tr('发现新版本 v%s\n%s\n\n是否立即下载更新？') % (latest, note or '')):
+                                threading.Thread(target=self._download_update, args=(dl_url, latest, mchecksum), daemon=True).start()
+                        else:  # same_content：版本号相同但内容已变化
+                            self.status_var.set('发现新版本 v' + APP_VERSION + '（内容已更新）')
+                            if messagebox.askyesno(tr('发现新版本'),
+                                                   tr('检测到 v%s 有新的更新（发布内容已变化）\n%s\n\n是否立即下载更新？') % (APP_VERSION, note or '')):
+                                threading.Thread(target=self._download_update, args=(dl_url, latest, mchecksum), daemon=True).start()
                 elif kind == 'update_downloaded':
                     version, target = data
                     if not version:

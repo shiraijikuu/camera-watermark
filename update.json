@@ -1,5 +1,6 @@
 {
   "version": "1.3.2",
   "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.3.2/PhotoWatermark-v1.3.2.exe",
-  "note": "v1.3.2: Plugin store update detection (version + checksum). / 插件商店更新检测（版本号 + 校验和）。"
+  "note": "v1.3.2: Plugin store update detection (version + checksum) + security fixes (Zip Slip on plugin install; HTTPS-only store/download). / 插件商店更新检测（版本号 + 校验和）+ 安全修复（插件安装 Zip Slip；商店/下载仅支持 HTTPS）。",
+  "checksum": "05b9aeaf2793eaa8e99cb23a5c831ace4cde9cdc37298ee1d2e4a6757f95bf92"
 }

@@ -12,6 +12,15 @@
 - Install record saved to `plugins/.installed.json` / 安装记录保存到 `plugins/.installed.json`
 - Full 中文 / English / 繁體中文 translations for the store UI / 商店界面补齐中英繁翻译
 
+## Security Fixes / 安全修复
+
+- **Zip Slip (path traversal) fix** on plugin install (store + manual add) — archives are validated before extraction / 修复插件安装 Zip Slip 路径穿越（商店安装 + 手动添加），解压前校验路径
+- **HTTPS-only** for plugin_store_url / install_url / 插件商店与下载地址仅支持 HTTPS
+- Checksum comparison is now case-insensitive / 校验和比对忽略大小写
+- Version comparison supports `v` prefix / 版本号比较支持 v 前缀
+- **App auto-update also uses checksum** (update.json `checksum`) — same-version rebuilds are detected / 主程序热更新同样支持校验和检测（update.json 的 checksum）——同版本号重新发布也能被检测到
+- Downloaded update is verified against the manifest checksum before applying / 下载的更新文件会按清单 checksum 校验后再应用
+
 See CHANGELOG.md / 详见 CHANGELOG.md。
 
 ---

@@ -99,9 +99,11 @@ See PLUGINS.md. A plugin is a folder inside plugins/ containing plugin.py with a
 
 The Plugin Manager window (Export tab) shows load status and lets you add (.zip/.py) or refresh. 「导出」页的「插件管理」窗口可查看加载状态 / 添加(.zip/.py) / 刷新。
 
+> 🔒 **Security / 安全：** plugin_store_url / install_url only accept **HTTPS** (plugins are executed locally as Python code; plain HTTP allows code injection). Plugin archives are validated against Zip Slip (path traversal) on install. 插件商店地址仅支持 **HTTPS**（插件是本地执行的 Python 代码，HTTP 可被中间人注入代码）；安装时会校验压缩包路径，拒绝路径穿越（Zip Slip）。
+
 ## Hot Update / 热更新
 
-Set update_url in config.json (JSON manifest URL), click "Check for Updates" to compare versions, download and auto-replace. 在 config.json 设置 update_url（更新清单 JSON 地址），点「检查更新」→ 比对版本 → 下载 → 自动替换并重启。
+Set update_url in config.json (JSON manifest URL), click "Check for Updates" to compare versions, download and auto-replace. The manifest supports an optional `checksum` (SHA-256 of the exe) so same-version rebuilds are also detected. 在 config.json 设置 update_url（更新清单 JSON 地址），点「检查更新」→ 比对版本 → 下载 → 自动替换并重启。清单支持可选 `checksum`（exe 的 SHA-256），同版本号重新发布也能检测到更新。
 
 ## Build from Source / 从源码打包 exe
 
@@ -125,13 +127,17 @@ See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.m
 
 ## Release Notes / 更新公告（v1.3.2）
 
-**EN: Plugin Store update detection.** The store now compares the catalog version AND a content checksum (SHA-256) against your installed plugin. If either differs, an **Update** button appears for one-click upgrade — even when the version number is unchanged. Plugin cards show the last-updated date.
+**EN: Plugin Store update detection + security fixes.** The store compares the catalog version AND a content checksum (SHA-256) against your installed plugin — an **Update** button appears for one-click upgrade, even when the version number is unchanged. This build also fixes a **Zip Slip (path traversal)** issue on plugin install and requires **HTTPS** for the plugin store/download URLs.
 
-**中文：插件商店更新检测。** 商店现在会比对目录版本号 + 内容校验和（SHA-256）与本地已装插件。任一不同即显示「更新」按钮一键升级——即使版本号没变也能检测到内容更新。插件卡片显示更新时间。
+**中文：插件商店更新检测 + 安全修复。** 商店会比对目录版本号 + 内容校验和（SHA-256）与本地已装插件，任一不同即显示「更新」按钮一键升级（即使版本号没变也能检测到）。本版同时修复插件安装的 **Zip Slip（路径穿越）** 漏洞，并强制插件商店/下载地址使用 **HTTPS**。
 
-- Version + checksum comparison / 版本号 + 校验和双重比对
-- Update button for one-click upgrade / 「更新」按钮一键升级
+- Plugin Store: version + checksum update detection / 插件商店：版本号 + 校验和双重更新检测
+- App auto-update: version + checksum detection (same-version rebuilds detected) / 主程序热更新：版本号 + 校验和检测（同版本号重新发布也能收到更新）
+- Security: Zip Slip fix on plugin install / 安全：修复插件安装 Zip Slip 路径穿越
+- Security: HTTPS-only plugin store & download / 安全：插件商店与下载仅支持 HTTPS
 - Install record: plugins/.installed.json / 安装记录：plugins/.installed.json
+
+> 🔒 **Security / 安全：** plugin_store_url / install_url only accept **HTTPS** (plugins are executed locally as Python code; plain HTTP allows code injection). Plugin archives are validated against Zip Slip (path traversal) on install. 插件商店地址仅支持 **HTTPS**（插件是本地执行的 Python 代码，HTTP 可被中间人注入代码）；安装时会校验压缩包路径，拒绝路径穿越（Zip Slip）。
 
 > ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.3.2 once** — the old auto-updater cannot upgrade to this version; after installing v1.3.2, auto-update works again.
 > ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.3.2 一次** — 旧版自动更新无法升级到本版；安装 v1.3.2 后自动更新恢复正常。
