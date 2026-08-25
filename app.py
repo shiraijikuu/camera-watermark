@@ -431,8 +431,8 @@ class PluginSettingsWindow:
                             except Exception:
                                 pass
                         th.pack(padx=2, pady=2)
-                        th.bind('<Button-1>', lambda e, it=it, t=tile: self._gallery_pick(pname, key, it, t))
-                        tile.bind('<Button-1>', lambda e, it=it, t=tile: self._gallery_pick(pname, key, it, t))
+                        th.bind('<Button-1>', lambda e, pn=pname, k=key, it=it, t=tile: self._gallery_pick(pn, k, it, t))
+                        tile.bind('<Button-1>', lambda e, pn=pname, k=key, it=it, t=tile: self._gallery_pick(pn, k, it, t))
                         tiles.append((tile, it))
                     self.widgets[pname][key] = ('gallery', {'tiles': tiles})
                 elif kind == 'range':
