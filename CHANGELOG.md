@@ -25,6 +25,7 @@
 ### 修复
 - 预设水印图缩略图点击无效（lambda 闭包变量捕获）
 - 字体识别相关优化
+- 自动更新替换失败（“Security validation failure”）：改用 VBS + ShellExecute，不再经过 cmd
 
 ### 其他
 - 发布包 / 插件安装包按版本命名，releases/vX.Y.Z/ 分目录

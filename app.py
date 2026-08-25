@@ -1150,27 +1150,35 @@ class App:
         if not os.path.exists(exe):
             messagebox.showerror(tr('更新'), tr('找不到当前程序文件：') + exe)
             return
-        updater = os.path.join(APP_DIR, 'update.cmd')
+        updater = os.path.join(APP_DIR, 'update.vbs')
         name = os.path.basename(exe)
-        script = ('@echo off\r\n'
-                  'ping 127.0.0.1 -n 3 > nul\r\n'
-                  'taskkill /IM "' + name + '" /F > nul 2>&1\r\n'
-                  'copy /Y "' + new_exe + '" "' + exe + '" > nul\r\n'
-                  'del /Q "' + new_exe + '"\r\n'
-                  'start "" "' + exe + '"\r\n'
-                  'del "%~f0"\r\n')
+
+        def vq(s):
+            return '"' + s.replace('"', '""') + '"'
+
+        # VBS：等待 → 结束旧进程 → 复制新 exe → 启动新程序 → 删除脚本
+        # 用 wscript + ShellExecute 启动，不经过 cmd，避免安全校验失败
+        vbs = ('Set fso = CreateObject("Scripting.FileSystemObject")\r\n'
+               'WScript.Sleep 1500\r\n'
+               'On Error Resume Next\r\n'
+               'CreateObject("WScript.Shell").Run "taskkill /IM ' + name + ' /F", 0, True\r\n'
+               'fso.CopyFile ' + vq(new_exe) + ', ' + vq(exe) + ', True\r\n'
+               'fso.DeleteFile ' + vq(new_exe) + '\r\n'
+               'CreateObject("WScript.Shell").Run ' + vq(exe) + '\r\n'
+               'fso.DeleteFile WScript.ScriptFullName\r\n')
         try:
             with open(updater, 'w', encoding='gbk') as f:
-                f.write(script)
+                f.write(vbs)
         except Exception as e:
             messagebox.showerror(tr('更新失败'), str(e))
             return
         try:
-            subprocess.Popen(['cmd', '/c', updater],
-                             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-        except Exception:
             os.startfile(updater)
-        self.root.destroy()
+        except Exception as e:
+            messagebox.showerror(tr('更新失败'), str(e))
+            return
+        # 给 VBS 一点启动时间再退出本程序
+        self.root.after(800, self.root.destroy)
 
     # ---------- 照片列表 ----------
     def choose_input(self):
