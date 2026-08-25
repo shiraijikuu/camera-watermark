@@ -39,10 +39,11 @@ class PluginAPI:
         self.setting_specs = []   # [(plugin_name, key, spec)]（插件设置项）
         self.plugin_name = ''     # 当前加载的插件名
 
-    def add_setting(self, key, label, kind='text', default='', options=None):
+    def add_setting(self, key, label, kind='text', default='', options=None, min=0, max=100, step=1):
         """注册插件设置项（在「插件设置」窗口显示并保存到 config.json）。
-        kind: 'text' | 'file' | 'number' | 'select' | 'bool'"""
-        spec = {'label': label, 'kind': kind, 'default': default, 'options': list(options or [])}
+        kind: 'text' | 'file' | 'number' | 'select' | 'bool' | 'range'（滑块）"""
+        spec = {'label': label, 'kind': kind, 'default': default,
+                'options': list(options or []), 'min': min, 'max': max, 'step': step}
         self.setting_specs.append((self.plugin_name, key, spec))
 
     def add_token(self, name, func):
@@ -383,6 +384,18 @@ class PluginSettingsWindow:
                     var = tk.BooleanVar(value=bool(cur))
                     ttk.Checkbutton(row, variable=var).pack(side='left')
                     self.widgets[pname][key] = ('var', var)
+                elif kind == 'range':
+                    try:
+                        cur_f = float(cur)
+                    except (TypeError, ValueError):
+                        cur_f = float(spec.get('default', 0))
+                    var = tk.DoubleVar(value=cur_f)
+                    ttk.Scale(row, from_=float(spec.get('min', 0)), to=float(spec.get('max', 100)),
+                              variable=var).pack(side='left', fill='x', expand=True, padx=6)
+                    vlab = ttk.Label(row, text='%.1f' % cur_f, width=6)
+                    vlab.pack(side='left')
+                    var.trace_add('write', lambda *a, l=vlab, v=var: l.config(text='%.1f' % float(v.get())))
+                    self.widgets[pname][key] = ('var', var)
                 elif kind == 'number':
                     var = tk.StringVar(value=str(cur))
                     ttk.Entry(row, textvariable=var, width=12).pack(side='left')
@@ -405,7 +418,7 @@ class PluginSettingsWindow:
                 spec = PLUGIN_SETTINGS[pname][key]
                 if spec['kind'] == 'bool':
                     pvals[key] = bool(var.get())
-                elif spec['kind'] == 'number':
+                elif spec['kind'] in ('number', 'range'):
                     try:
                         pvals[key] = float(var.get())
                     except Exception:
@@ -415,6 +428,13 @@ class PluginSettingsWindow:
         save_config(self.parent.settings)
         self.parent.status_var.set(tr('插件设置已保存'))
         self.parent._schedule_preview()
+        # 若当前还是默认文字样式且插件有水印样式，提示切换，避免"设置了却看不到"
+        if PLUGIN_API.styles and self.parent.settings.get('style', 'default') == 'default':
+            if messagebox.askyesno(tr('提示'), tr('是否切换到插件的水印样式？')):
+                for _name, (label, _r) in PLUGIN_API.styles.items():
+                    self.parent.style_var.set(label)
+                    break
+                self.parent._on_change()
 
 
 # ==================== 主界面 ====================

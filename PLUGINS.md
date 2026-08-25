@@ -124,7 +124,7 @@ def register(api):
 插件可以注册设置项，在「导出」页 ->「插件设置」窗口里调整，自动保存到 config.json，
 渲染时通过 `settings['plugin_values'][插件名][key]` 读取。
 
-- `kind`：`text` / `file`（文件选择）/ `number` / `select`（下拉）/ `bool`（勾选）
+- `kind`：`text` / `file`（文件选择）/ `number` / `select`（下拉）/ `bool`（勾选）/ `range`（滑块，需传 min/max/step）
 - `options`：select 时的选项列表
 
 ```python
