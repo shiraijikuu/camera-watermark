@@ -29,7 +29,9 @@ CONFIG_PATH = os.path.join(APP_DIR, 'config.json')
 PLUGINS_DIR = os.path.join(APP_DIR, 'plugins')
 FONTS_DIR = os.path.join(APP_DIR, 'fonts')
 INSTALLED_META_PATH = os.path.join(PLUGINS_DIR, '.installed.json')  # 插件安装记录（版本/校验和/更新时间）
-APP_VERSION = '1.3.2'
+MAX_EXTRACT_TOTAL = 300 * 1024 * 1024   # 单次解压总量上限 300MB（zip 炸弹防护）
+MAX_EXTRACT_FILES = 2000                # 单次解压文件数量上限
+APP_VERSION = '1.3.3'
 
 # ==================== 插件系统 ====================
 class PluginAPI:
@@ -257,8 +259,11 @@ def _write_installed_meta(meta):
 
 
 def _safe_extract_zip(zip_path, dest):
-    """安全解压：拒绝 Zip Slip（路径穿越 / 绝对路径 / 盘符 / 符号链接逃逸）。"""
+    """安全解压：拒绝 Zip Slip（路径穿越 / 绝对路径 / 盘符 / 符号链接逃逸），
+    并限制解压总量与文件数量（zip 炸弹防护）。"""
     real_dest = os.path.realpath(dest)
+    total = 0
+    count = 0
     with zipfile.ZipFile(zip_path) as z:
         for m in z.infolist():
             name = m.filename.replace('\\', '/')
@@ -267,6 +272,12 @@ def _safe_extract_zip(zip_path, dest):
                 raise ValueError(tr('非法路径: %s') % name)
             if m.is_dir() or not name:
                 continue
+            count += 1
+            total += m.file_size
+            if count > MAX_EXTRACT_FILES:
+                raise ValueError(tr('压缩包内文件过多'))
+            if total > MAX_EXTRACT_TOTAL:
+                raise ValueError(tr('解压文件过大（超过 %d MB 限制）') % (MAX_EXTRACT_TOTAL // (1024 * 1024)))
             target = os.path.join(real_dest, *parts)
             if os.path.realpath(target) != os.path.join(real_dest, *parts):
                 raise ValueError(tr('非法路径: %s') % name)
@@ -629,6 +640,8 @@ class PluginStoreWindow:
         self.win.transient(parent.root)
         self.win.grab_set()
         self.plugins = []
+        self._installing = False       # 防重复点击安装（并发冲突）
+        self._installing_pid = ''
         ttk.Label(self.win, text=tr('从插件商店下载并安装插件（安装到 plugins/ 目录，重启或刷新后生效）'),
                   foreground='#888').pack(anchor='w', padx=8, pady=(6, 2))
         self.status = tk.StringVar(value=tr('正在加载插件列表…'))
@@ -659,7 +672,7 @@ class PluginStoreWindow:
             self.plugins = data.get('plugins', []) if isinstance(data, dict) else []
             self.parent.root.after(0, self._render)
         except Exception as e:
-            self.parent.root.after(0, lambda: self.status.set(tr('加载失败：') + str(e)))
+            self.parent.root.after(0, lambda e=e: self.status.set(tr('加载失败：') + str(e)))
 
     def _render(self):
         for w in self.box.winfo_children():
@@ -683,28 +696,61 @@ class PluginStoreWindow:
             bar = ttk.Frame(row)
             bar.pack(fill='x', padx=6, pady=2)
             if pid in installed:
+                # 已加载成功：正常更新检测
                 lver = str(PLUGIN_VERSIONS.get(pid, '') or '')
                 if _plugin_update_available(p, meta):
                     ttk.Label(bar, text=(tr('已安装 v%s → v%s') % (lver, p.get('version', ''))),
                               foreground='#3b82f6').pack(side='left')
-                    ttk.Button(bar, text=tr('更新'), command=lambda pp=p: self.install(pp)).pack(side='left', padx=6)
+                    self._install_button(bar, p, tr('更新'))
                 else:
                     ttk.Label(bar, text=(tr('已安装 v%s · 最新') % lver) if lver else tr('已安装 · 最新'),
                               foreground='#3b82f6').pack(side='left')
+            elif pid in meta:
+                # 有安装记录但加载失败：红色提示 + 一键「更新 / 重装」自愈
+                rec = meta.get(pid, {}) or {}
+                lver = str(rec.get('version', '') or '')
+                mver = str(p.get('version', '') or '')
+                if lver and mver and _version_newer(mver, lver):
+                    ttk.Label(bar, text=(tr('已安装 v%s（加载失败）→ v%s') % (lver, mver)),
+                              foreground='#e23636').pack(side='left')
+                    self._install_button(bar, p, tr('更新'))
+                else:
+                    ttk.Label(bar, text=(tr('已安装 v%s · 加载失败') % lver) if lver else tr('已安装 · 加载失败'),
+                              foreground='#e23636').pack(side='left')
+                    self._install_button(bar, p, tr('重装'))
             else:
-                ttk.Button(bar, text=tr('安装'), command=lambda pp=p: self.install(pp)).pack(side='left')
+                self._install_button(bar, p, tr('安装'))
             repo = str(p.get('repo', ''))
             if repo:
                 ttk.Button(bar, text=tr('打开仓库'), command=lambda pp=repo: os.startfile('https://github.com/' + pp)).pack(side='left', padx=6)
 
+    def _install_button(self, bar, p, text):
+        """安装/更新/重装按钮：安装中禁用，当前安装中的插件显示「安装中…」。"""
+        if self._installing and self._installing_pid == str(p.get('id', '')):
+            ttk.Button(bar, text=tr('安装中…'), state='disabled').pack(side='left', padx=6)
+        else:
+            ttk.Button(bar, text=text, state='disabled' if self._installing else 'normal',
+                       command=lambda pp=p: self.install(pp)).pack(side='left', padx=6)
+
     def install(self, p):
+        if self._installing:
+            return
+        # 清单未提供 checksum：向后兼容 + 安全提示（主线程弹窗）
+        if not str(p.get('checksum', '') or '').strip():
+            if not messagebox.askyesno(tr('安装插件'), tr('该插件未提供校验和，来源可信度未知，仍要安装吗？')):
+                return
+        self._installing = True
+        self._installing_pid = str(p.get('id', ''))
         self.status.set(tr('正在下载并安装…'))
+        self._render()
         threading.Thread(target=self._install_worker, args=(p,), daemon=True).start()
 
     def _install_worker(self, p):
         pid = str(p.get('id', ''))
         url = str(p.get('install_url', ''))
         tmp = os.path.join(APP_DIR, '_plugin_tmp')
+        staging = None
+        bak = None
         try:
             if not url:
                 raise ValueError('no install_url')
@@ -712,12 +758,21 @@ class PluginStoreWindow:
                 raise ValueError(tr('仅支持 HTTPS 下载地址（install_url 必须使用 https://）'))
             with urllib.request.urlopen(url, timeout=180) as r:
                 data = r.read()
+            # 1) 下载校验：与清单 checksum 比对，不一致拒绝安装
+            try:
+                checksum = hashlib.sha256(data).hexdigest().lower()
+            except Exception:
+                checksum = ''
+            msum = str(p.get('checksum', '') or '').strip().lower()
+            if msum and checksum != msum:
+                raise ValueError(tr('下载文件校验失败（checksum 不匹配）'))
             if os.path.isdir(tmp):
                 shutil.rmtree(tmp)
             os.makedirs(tmp, exist_ok=True)
             zip_path = os.path.join(tmp, 'plugin.zip')
             with open(zip_path, 'wb') as f:
                 f.write(data)
+            # 2) 解压暂存（含 Zip Slip + 大小/数量防护）
             _safe_extract_zip(zip_path, tmp)
             plugin_py = None
             for root, dirs, files in os.walk(tmp):
@@ -727,15 +782,28 @@ class PluginStoreWindow:
             if not plugin_py:
                 raise ValueError(tr('压缩包里没有 plugin.py'))
             folder = os.path.dirname(plugin_py)
+            # 3) 原子提交：staging → 旧目录 .bak → 新目录 → 删 .bak（失败恢复 .bak）
             target = os.path.join(PLUGINS_DIR, pid)
-            if os.path.isdir(target):
-                shutil.rmtree(target)
-            shutil.copytree(folder, target)
-            # 记录安装信息（版本 / zip 校验和 / 更新时间），用于商店“更新检测”
+            staging = os.path.join(PLUGINS_DIR, '_staging_' + pid)
+            bak = os.path.join(PLUGINS_DIR, '_bak_' + pid)
+            for d in (staging, bak):
+                if os.path.isdir(d):
+                    shutil.rmtree(d)
+            shutil.copytree(folder, staging)
             try:
-                checksum = hashlib.sha256(data).hexdigest().lower()
+                if os.path.isdir(target):
+                    os.rename(target, bak)
+                os.rename(staging, target)
+                if os.path.isdir(bak):
+                    shutil.rmtree(bak)
             except Exception:
-                checksum = ''
+                if os.path.isdir(bak) and not os.path.isdir(target):
+                    try:
+                        os.rename(bak, target)
+                    except Exception:
+                        pass
+                raise
+            # 记录安装信息（版本 / zip 校验和 / 更新时间），用于商店“更新检测”
             meta = _read_installed_meta()
             meta[pid] = {
                 'version': str(p.get('version', '') or ''),
@@ -748,13 +816,24 @@ class PluginStoreWindow:
             self.parent.root.after(0, self._install_done)
         except Exception as e:
             shutil.rmtree(tmp, ignore_errors=True)
-            self.parent.root.after(0, lambda: self.status.set(tr('安装失败：') + str(e)))
+            for d in (staging, bak):
+                if d and os.path.isdir(d):
+                    shutil.rmtree(d, ignore_errors=True)
+            self.parent.root.after(0, lambda e=e: self._install_failed(str(e)))
 
     def _install_done(self):
         reload_plugins()
         self.parent._refresh_style_choices()
         self.parent._refresh_format_choices()
         self.status.set(tr('安装完成，已刷新插件列表'))
+        self._installing = False
+        self._installing_pid = ''
+        self._render()
+
+    def _install_failed(self, msg):
+        self._installing = False
+        self._installing_pid = ''
+        self.status.set(tr('安装失败：') + msg)
         self._render()
 
 

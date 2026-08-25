@@ -4,7 +4,7 @@
 
 **中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
-- **Version / 版本：** v1.3.2
+- **Version / 版本：** v1.3.3
 - **Author / 作者：** Shiraijikuu (GitHub)
 - **AI assistance / AI 协助：** OpenAI Codex
 - **License / 许可证：** MIT (LICENSE)
@@ -125,22 +125,14 @@ Strict semantic versioning x.y.z / 严格按照语义化版本 x.y.z 管理：
 
 See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.md；发布包按版本放在 releases/vX.Y.Z/ 目录。
 
-## Release Notes / 更新公告（v1.3.2）
+## Release Notes / 更新公告（v1.3.3）
 
-**EN: Plugin Store update detection + security fixes.** The store compares the catalog version AND a content checksum (SHA-256) against your installed plugin — an **Update** button appears for one-click upgrade, even when the version number is unchanged. This build also fixes a **Zip Slip (path traversal)** issue on plugin install and requires **HTTPS** for the plugin store/download URLs.
+**EN: Plugin Store robustness & security.** Install verifies the zip against the catalog checksum; load-failed plugins show a red "Failed to Load" with one-click Update/Reinstall; overwrite is atomic (auto-restore on failure); zip-bomb limits; double-click guard.
 
-**中文：插件商店更新检测 + 安全修复。** 商店会比对目录版本号 + 内容校验和（SHA-256）与本地已装插件，任一不同即显示「更新」按钮一键升级（即使版本号没变也能检测到）。本版同时修复插件安装的 **Zip Slip（路径穿越）** 漏洞，并强制插件商店/下载地址使用 **HTTPS**。
+**中文：插件商店健壮性与安全修复。** 安装校验 zip 与目录 checksum 是否一致；加载失败的插件显示红色「加载失败」并支持一键更新/重装；覆盖安装原子化（失败自动恢复）；zip 炸弹防护；防重复点击。
 
-- Plugin Store: version + checksum update detection / 插件商店：版本号 + 校验和双重更新检测
-- App auto-update: version + checksum detection (same-version rebuilds detected) / 主程序热更新：版本号 + 校验和检测（同版本号重新发布也能收到更新）
-- Security: Zip Slip fix on plugin install / 安全：修复插件安装 Zip Slip 路径穿越
-- Security: HTTPS-only plugin store & download / 安全：插件商店与下载仅支持 HTTPS
-- Install record: plugins/.installed.json / 安装记录：plugins/.installed.json
-
-> 🔒 **Security / 安全：** plugin_store_url / install_url only accept **HTTPS** (plugins are executed locally as Python code; plain HTTP allows code injection). Plugin archives are validated against Zip Slip (path traversal) on install. 插件商店地址仅支持 **HTTPS**（插件是本地执行的 Python 代码，HTTP 可被中间人注入代码）；安装时会校验压缩包路径，拒绝路径穿越（Zip Slip）。
-
-> ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.3.2 once** — the old auto-updater cannot upgrade to this version; after installing v1.3.2, auto-update works again.
-> ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.3.2 一次** — 旧版自动更新无法升级到本版；安装 v1.3.2 后自动更新恢复正常。
+> ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.3.3 once** — the old auto-updater cannot upgrade to this version; after installing v1.3.3, auto-update works again.
+> ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.3.3 一次** — 旧版自动更新无法升级到本版；安装 v1.3.3 后自动更新恢复正常。
 
 详见 / See CHANGELOG.md。
 

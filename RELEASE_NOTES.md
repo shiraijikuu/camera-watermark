@@ -1,3 +1,20 @@
+# 📢 Photo Watermark v1.3.3 — Release Notes / 更新公告
+
+**EN:** Plugin Store robustness & security fixes. Install now verifies the downloaded zip against the catalog checksum; plugins that fail to load show a red "Failed to Load" state with a one-click **Update/Reinstall**; overwrite install is now atomic (old version auto-restored on failure); zip-bomb size/count limits; double-click install guard.
+
+**中文：** 插件商店健壮性与安全修复。安装现在会校验下载的 zip 是否与目录 checksum 一致；加载失败的插件显示红色「加载失败」并可一键「更新/重装」；覆盖安装改为原子操作（失败自动恢复旧版）；新增 zip 炸弹大小/数量防护；防止重复点击安装。
+
+## What's Fixed / 修复内容
+
+- Verify downloaded plugin zip against catalog checksum (reject mismatch; warn when checksum missing) / 下载插件 zip 按目录 checksum 校验（不一致拒绝；缺失时提示）
+- Load-failed plugins: red "Failed to Load" + one-click Update/Reinstall / 加载失败插件：红色「加载失败」+ 一键更新/重装
+- Atomic overwrite install with auto-restore on failure / 覆盖安装原子化，失败自动恢复
+- Zip-bomb protection (300 MB total / 2000 files) / zip 炸弹防护（总量 300MB / 2000 文件）
+- Prevent concurrent installs from double-click / 防止重复点击安装并发冲突
+
+See CHANGELOG.md / 详见 CHANGELOG.md。
+
+---
 # 📢 Photo Watermark v1.3.2 — Release Notes / 更新公告
 
 **EN:** Plugin Store now detects updates! When a plugin has a newer version in the store — or its published content changed (checksum) even if the version number is unchanged — the store shows an **Update** button for one-click upgrade. Plugin cards also show the last-updated date.
