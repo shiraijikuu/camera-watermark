@@ -1,0 +1,64 @@
+# Release Guide / 发布流程说明
+
+This document describes how to release a new version of Photo Watermark. 本文档说明如何发布 Photo Watermark 新版本。
+
+## 0. Versioning Rules / 版本规则 (SemVer)
+
+Follow strict semantic versioning x.y.z / 严格遵循语义化版本 x.y.z：
+- Major X: breaking changes / 主版本 X：破坏性变更，不兼容旧版本
+- Minor Y: new features, backward compatible / 次版本 Y：新增功能，向下兼容
+- Patch Z: bug fixes only / 修订版本 Z：只修 bug / 安全修复，无新功能
+
+## 1. Update Version & Docs / 更新版本号与文档
+
+Edit these files / 修改以下文件：
+
+1. `app.py` — set `APP_VERSION = "x.y.z"` / 设置版本号
+2. `CHANGELOG.md` — add a new entry at the top / 顶部新增一条更新日志
+3. `RELEASE_NOTES.md` — update the release notes (bilingual) / 更新发布说明（中英双语）
+4. `update.json` — set `version` and `url` (point to the new release exe asset) and `note`
+   / 设置 version、url（指向新版 Release 的 exe 附件）和 note
+
+## 2. Rebuild the exe / 重新打包 exe
+
+    pip install -r requirements-dev.txt
+    pyinstaller --noconfirm --clean --onefile --windowed --name "PhotoWatermark" --hidden-import "PIL._tkinter_finder" app.py
+
+Output is in dist/. Then / 产物在 dist/，然后：
+- Copy the new exe as the hot-update asset / 复制新版 exe 作为热更新附件：
+    copy dist\PhotoWatermark.exe dist\PhotoWatermark-x.y.z.exe
+
+## 3. Prepare release packages / 准备发布包
+
+    # portable package / 分发包（普通用户）
+    Compress-Archive -Path dist\* -DestinationPath releases\vX.Y.Z\PhotoWatermark-x.y.z-portable.zip
+    # source package / 开源版（源码 + 成品）
+    Compress-Archive -Path open-source -DestinationPath releases\vX.Y.Z\PhotoWatermark-x.y.z-source.zip
+
+Note: keep dist and open-source out of git (see .gitignore). / 注意：dist 和 open-source 不进 Git（见 .gitignore）。
+
+## 4. Commit, tag and push / 提交、打标签、推送
+
+    git add .
+    git commit -m "vX.Y.Z: ..."
+    git tag vX.Y.Z
+    git push
+    git push origin vX.Y.Z
+
+## 5. Create the GitHub Release / 在 GitHub 创建 Release
+
+1. Open / 打开：https://github.com/shiraijikuu/camera-watermark/releases/new
+2. Choose tag `vX.Y.Z` / 选择标签 vX.Y.Z
+3. Title: `Photo Watermark vX.Y.Z`
+4. Description: paste the content of RELEASE_NOTES.md (bilingual) / 粘贴 RELEASE_NOTES.md 内容（中英双语）
+5. Attach these 3 files / 附件拖入这 3 个文件：
+   - `PhotoWatermark-x.y.z-portable.zip`
+   - `PhotoWatermark-x.y.z-source.zip`
+   - `PhotoWatermark-x.y.z.exe` (hot-update asset / 热更新下载用)
+6. Publish release / 发布
+
+## 6. Hot update / 热更新
+
+The app checks `update.json` in the repo (default update_url) and downloads the new exe from the Release asset URL, then replaces and restarts itself automatically. / 软件会读取仓库里的 update.json（默认更新地址），从 Release 附件 URL 下载新 exe，自动替换并重启。
+
+No extra steps needed after publishing the Release — the manifest URL already points to the new asset. / 发布 Release 后无需额外操作——清单 URL 已指向新附件。
