@@ -1,3 +1,6 @@
+> **Note / 说明：** Plugins are maintained in **separate repositories** (see plugins/README.md).
+> This document describes the plugin API. 插件在**独立仓库**中单独维护（见 plugins/README.md），本文档介绍插件 API。
+
 # 相机照片水印工具 - 插件开发指南
 
 插件可以让其他人（或你自己）给软件添加新功能，**不需要改软件本身**。

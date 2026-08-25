@@ -432,6 +432,7 @@ class App:
         self.preview_timer = None
         try:
             os.makedirs(FONTS_DIR, exist_ok=True)
+            os.makedirs(PLUGINS_DIR, exist_ok=True)
         except Exception:
             pass
         self.fonts = photo.available_fonts(FONTS_DIR)

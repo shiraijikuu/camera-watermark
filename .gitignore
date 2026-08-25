@@ -10,3 +10,5 @@ releases/
 open-source/
 fonts/
 *.zip
+plugins/*/
+plugin-repos/
