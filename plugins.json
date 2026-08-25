@@ -14,7 +14,9 @@
         "image",
         "gif"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.0.0/PhotoWatermark-image-watermark-v1.0.0.zip"
+      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.0.0/PhotoWatermark-image-watermark-v1.0.0.zip",
+      "checksum": "4bc1d945d2f4198806b58f9415e5819f131886c32ff7b4b71a97fa5d356d369e",
+      "updated_at": "2026-08-25"
     }
   ]
 }

@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import urllib.request
 import zipfile
+import hashlib
+import time
 
 import tkinter as tk
 from tkinter import ttk, filedialog, colorchooser, messagebox
@@ -25,7 +27,8 @@ else:
 CONFIG_PATH = os.path.join(APP_DIR, 'config.json')
 PLUGINS_DIR = os.path.join(APP_DIR, 'plugins')
 FONTS_DIR = os.path.join(APP_DIR, 'fonts')
-APP_VERSION = '1.3.1'
+INSTALLED_META_PATH = os.path.join(PLUGINS_DIR, '.installed.json')  # 插件安装记录（版本/校验和/更新时间）
+APP_VERSION = '1.3.2'
 
 # ==================== 插件系统 ====================
 class PluginAPI:
@@ -230,6 +233,47 @@ def _version_newer(a, b):
                 out.append(0)
         return out
     return parse(a) > parse(b)
+
+
+def _read_installed_meta():
+    """读取插件安装记录 plugins/.installed.json（不存在则返回 {}）。"""
+    try:
+        with open(INSTALLED_META_PATH, 'r', encoding='utf-8') as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_installed_meta(meta):
+    """写插件安装记录。"""
+    try:
+        with open(INSTALLED_META_PATH, 'w', encoding='utf-8') as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _plugin_update_available(p, installed_meta=None):
+    """判断商店里的插件 p 是否有更新：
+    1) 商店版本号 > 本地已装版本号；
+    2) 或商店 checksum（zip 的 SHA-256）与本地安装记录不一致（版本号不变也能检测内容更新）。
+    未安装则返回 False。"""
+    pid = str(p.get('id', ''))
+    if pid not in PLUGIN_NAMES:
+        return False
+    mver = str(p.get('version', '') or '')
+    lver = str(PLUGIN_VERSIONS.get(pid, '') or '')
+    if mver and lver and _version_newer(mver, lver):
+        return True
+    if installed_meta is None:
+        installed_meta = _read_installed_meta()
+    rec = installed_meta.get(pid, {}) if isinstance(installed_meta, dict) else {}
+    msum = str(p.get('checksum', '') or '').strip()
+    lsum = str(rec.get('checksum', '') or '').strip()
+    if msum and lsum and msum != lsum:
+        return True
+    return False
 
 
 # ==================== 插件管理窗口 ====================
@@ -571,18 +615,28 @@ class PluginStoreWindow:
             return
         self.status.set(tr('共 %d 个插件') % len(self.plugins))
         installed = set(PLUGIN_NAMES)
+        meta = _read_installed_meta()
         for p in self.plugins:
             pid = str(p.get('id', ''))
             row = ttk.LabelFrame(self.box, text=str(p.get('name', pid)))
             row.pack(fill='x', padx=2, pady=3)
             info = 'v%s · %s · %s' % (p.get('version', '?'), p.get('author', ''), p.get('license', ''))
+            if p.get('updated_at'):
+                info += ' · ' + tr('更新于 ') + str(p['updated_at'])
             ttk.Label(row, text=info, foreground='#888').pack(anchor='w', padx=6)
             ttk.Label(row, text=str(p.get('description', '')), wraplength=560,
                       justify='left').pack(anchor='w', padx=6)
             bar = ttk.Frame(row)
             bar.pack(fill='x', padx=6, pady=2)
             if pid in installed:
-                ttk.Label(bar, text=tr('已安装'), foreground='#3b82f6').pack(side='left')
+                lver = str(PLUGIN_VERSIONS.get(pid, '') or '')
+                if _plugin_update_available(p, meta):
+                    ttk.Label(bar, text=(tr('已安装 v%s → v%s') % (lver, p.get('version', ''))),
+                              foreground='#3b82f6').pack(side='left')
+                    ttk.Button(bar, text=tr('更新'), command=lambda pp=p: self.install(pp)).pack(side='left', padx=6)
+                else:
+                    ttk.Label(bar, text=(tr('已安装 v%s · 最新') % lver) if lver else tr('已安装 · 最新'),
+                              foreground='#3b82f6').pack(side='left')
             else:
                 ttk.Button(bar, text=tr('安装'), command=lambda pp=p: self.install(pp)).pack(side='left')
             repo = str(p.get('repo', ''))
@@ -622,6 +676,19 @@ class PluginStoreWindow:
             if os.path.isdir(target):
                 shutil.rmtree(target)
             shutil.copytree(folder, target)
+            # 记录安装信息（版本 / zip 校验和 / 更新时间），用于商店“更新检测”
+            try:
+                checksum = hashlib.sha256(data).hexdigest()
+            except Exception:
+                checksum = ''
+            meta = _read_installed_meta()
+            meta[pid] = {
+                'version': str(p.get('version', '') or ''),
+                'checksum': checksum,
+                'updated_at': str(p.get('updated_at', '') or ''),
+                'installed_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+            }
+            _write_installed_meta(meta)
             shutil.rmtree(tmp, ignore_errors=True)
             self.parent.root.after(0, self._install_done)
         except Exception as e:

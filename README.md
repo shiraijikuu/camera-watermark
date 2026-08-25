@@ -4,7 +4,7 @@
 
 **中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
-- **Version / 版本：** v1.3.1
+- **Version / 版本：** v1.3.2
 - **Author / 作者：** Shiraijikuu (GitHub)
 - **AI assistance / AI 协助：** OpenAI Codex
 - **License / 许可证：** MIT (LICENSE)
@@ -123,17 +123,18 @@ Strict semantic versioning x.y.z / 严格按照语义化版本 x.y.z 管理：
 
 See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.md；发布包按版本放在 releases/vX.Y.Z/ 目录。
 
-## Release Notes / 更新公告（v1.3.1）
+## Release Notes / 更新公告（v1.3.2）
 
-**EN: Hot-fix for auto-update.** Auto-update was failing with "Security validation failure: parent process has different executable". Now fixed and verified — updating from v1.2.0 / v1.3.0 to v1.3.1 works.
+**EN: Plugin Store update detection.** The store now compares the catalog version AND a content checksum (SHA-256) against your installed plugin. If either differs, an **Update** button appears for one-click upgrade — even when the version number is unchanged. Plugin cards show the last-updated date.
 
-**中文：自动更新热修复。** 修复自动更新报错（Security validation failure: parent process has different executable），已本地验证 v1.2.0 / v1.3.0 → v1.3.1 热更新正常。
+**中文：插件商店更新检测。** 商店现在会比对目录版本号 + 内容校验和（SHA-256）与本地已装插件。任一不同即显示「更新」按钮一键升级——即使版本号没变也能检测到内容更新。插件卡片显示更新时间。
 
-- Fix auto-update failure: clear PyInstaller runtime env vars before launching the new app / 修复自动更新失败：启动新程序前清除 PyInstaller 运行时环境变量
-- Add update_error.log for troubleshooting / 新增更新错误日志 update_error.log
+- Version + checksum comparison / 版本号 + 校验和双重比对
+- Update button for one-click upgrade / 「更新」按钮一键升级
+- Install record: plugins/.installed.json / 安装记录：plugins/.installed.json
 
-> ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.3.1 once** — the old auto-updater cannot upgrade to this version; after installing v1.3.1, auto-update works again.
-> ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.3.1 一次** — 旧版自动更新无法升级到本版；安装 v1.3.1 后自动更新恢复正常。
+> ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.3.2 once** — the old auto-updater cannot upgrade to this version; after installing v1.3.2, auto-update works again.
+> ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.3.2 一次** — 旧版自动更新无法升级到本版；安装 v1.3.2 后自动更新恢复正常。
 
 详见 / See CHANGELOG.md。
 

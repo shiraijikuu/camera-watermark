@@ -1,3 +1,20 @@
+# 📢 Photo Watermark v1.3.2 — Release Notes / 更新公告
+
+**EN:** Plugin Store now detects updates! When a plugin has a newer version in the store — or its published content changed (checksum) even if the version number is unchanged — the store shows an **Update** button for one-click upgrade. Plugin cards also show the last-updated date.
+
+**中文：** 插件商店现在支持「更新检测」！商店里插件有新版本、或发布内容有变化（校验和不同，即使版本号不变）时，会显示「更新」按钮，一键覆盖升级；插件卡片还会显示更新时间。
+
+## What's New / 新增
+
+- Plugin Store update detection: version comparison + checksum (SHA-256) / 插件商店更新检测：版本号比对 + 校验和（SHA-256）比对
+- "Update" button for one-click upgrade (reuses the overwrite-style installer) / 「更新」按钮一键升级（复用现有覆盖式安装）
+- Show plugin last-updated date / 显示插件更新时间
+- Install record saved to `plugins/.installed.json` / 安装记录保存到 `plugins/.installed.json`
+- Full 中文 / English / 繁體中文 translations for the store UI / 商店界面补齐中英繁翻译
+
+See CHANGELOG.md / 详见 CHANGELOG.md。
+
+---
 # 📢 Photo Watermark v1.3.1 — Release Notes / 更新公告
 
 **EN:** This is a hot-fix release. Auto-update was failing with "Security validation failure: parent process has different executable" when replacing the app. The auto-updater is now fixed and verified end-to-end (v1.3.1 and later update correctly). ⚠️ Because the updater inside v1.2.0 / v1.3.0 is broken, those users must download v1.3.1 manually once — see the notice below.
