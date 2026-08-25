@@ -592,11 +592,13 @@ class App:
             self.settings['font_family'] = names[0]
         self.font_combo = ttk.Combobox(row, textvariable=self.font_var, values=names, state='readonly')
         self.font_combo.pack(side='left', fill='x', expand=True, padx=6)
+        self.font_combo.bind('<Button-1>', lambda _e: self.refresh_fonts())
         frow = ttk.Frame(f)
         frow.pack(fill='x', pady=(2, 2))
         ttk.Button(frow, text=tr('添加字体文件'), command=self.add_font).pack(side='left')
         ttk.Button(frow, text=tr('打开字体文件夹'), command=self.open_fonts_dir).pack(side='left', padx=6)
-        ttk.Label(frow, text=tr('把自己的 .ttf/.otf 字体放进去即可'), foreground='#888').pack(side='left')
+        ttk.Button(frow, text=tr('刷新字体'), command=self.refresh_fonts).pack(side='left', padx=6)
+        ttk.Label(frow, text=tr('放好后点刷新或重启，无需重启也支持子文件夹'), foreground='#888').pack(side='left')
         self.bold_var = tk.BooleanVar()
         ttk.Checkbutton(f, text=tr('加粗'), variable=self.bold_var).pack(anchor='w', pady=4)
 
@@ -956,6 +958,14 @@ class App:
             os.startfile(FONTS_DIR)
         except Exception as e:
             messagebox.showerror(tr('无法打开'), str(e))
+
+    def refresh_fonts(self):
+        self.fonts = photo.available_fonts(FONTS_DIR)
+        names = [n for n, _ in self.fonts]
+        self.font_combo['values'] = names
+        if self.font_var.get() not in names and names:
+            self.font_var.set(names[0])
+        self.status_var.set(tr('字体列表已刷新，共 %d 个') % len(self.fonts))
 
     # ---------- 插件管理 ----------
     def open_plugin_manager(self):

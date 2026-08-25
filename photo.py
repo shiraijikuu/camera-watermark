@@ -490,14 +490,18 @@ FONT_CANDIDATES = [
 CUSTOM_FONT_EXTS = ('.ttf', '.otf', '.ttc')
 
 def _scan_custom_fonts(fonts_dir):
-    """扫描自定义字体目录（fonts/），返回 [(显示名, 路径)]"""
+    """扫描自定义字体目录（fonts/，含子文件夹），返回 [(显示名, 路径)]"""
     out = []
     if fonts_dir and os.path.isdir(fonts_dir):
         try:
-            for fn in sorted(os.listdir(fonts_dir)):
-                ext = os.path.splitext(fn)[1].lower()
-                if ext in CUSTOM_FONT_EXTS:
-                    out.append((tr('自定义: ') + os.path.splitext(fn)[0], os.path.join(fonts_dir, fn)))
+            for root, dirs, files in os.walk(fonts_dir):
+                dirs[:] = [d for d in dirs if not d.startswith('.')]
+                for fn in sorted(files):
+                    if fn.startswith('.'):
+                        continue
+                    ext = os.path.splitext(fn)[1].lower()
+                    if ext in CUSTOM_FONT_EXTS:
+                        out.append((tr('自定义: ') + os.path.splitext(fn)[0], os.path.join(root, fn)))
         except Exception:
             pass
     return out
@@ -539,7 +543,11 @@ def render_watermark(img, settings, values, fonts_dir=None):
 
     fs = max(8, int(W * settings.get('font_size_pct', 2.2) / 100))
     font_path = resolve_font(settings.get('font_family', '微软雅黑'), fonts_dir)
-    font = ImageFont.truetype(font_path, fs)
+    try:
+        font = ImageFont.truetype(font_path, fs)
+    except Exception:
+        # 字体文件损坏/不支持时回退到微软雅黑，避免渲染失败
+        font = ImageFont.truetype(r'C:\Windows\Fonts\msyh.ttc', fs)
     ascent, descent = font.getmetrics()
     line_h = int((ascent + descent) * (1 + settings.get('line_spacing', 0.35)))
 
