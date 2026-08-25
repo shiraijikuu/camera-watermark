@@ -132,5 +132,8 @@ See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.m
 - Fix auto-update failure: clear PyInstaller runtime env vars before launching the new app / 修复自动更新失败：启动新程序前清除 PyInstaller 运行时环境变量
 - Add update_error.log for troubleshooting / 新增更新错误日志 update_error.log
 
+> ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.3.1 once** — the old auto-updater cannot upgrade to this version; after installing v1.3.1, auto-update works again.
+> ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.3.1 一次** — 旧版自动更新无法升级到本版；安装 v1.3.1 后自动更新恢复正常。
+
 详见 / See CHANGELOG.md。
 

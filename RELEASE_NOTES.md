@@ -1,14 +1,21 @@
 # 📢 Photo Watermark v1.3.1 — Release Notes / 更新公告
 
-**EN:** This is a hot-fix release. Auto-update was failing with "Security validation failure: parent process has different executable" when replacing the app. It is now fixed and verified — updating from v1.2.0 / v1.3.0 to v1.3.1 works.
+**EN:** This is a hot-fix release. Auto-update was failing with "Security validation failure: parent process has different executable" when replacing the app. The auto-updater is now fixed and verified end-to-end (v1.3.1 and later update correctly). ⚠️ Because the updater inside v1.2.0 / v1.3.0 is broken, those users must download v1.3.1 manually once — see the notice below.
 
-**中文：** 本次为热修复版本。此前自动更新在替换程序时报错（Security validation failure: parent process has different executable），现已修复并验证通过——从 v1.2.0 / v1.3.0 一键更新到 v1.3.1 正常可用。
+**中文：** 本次为热修复版本。此前自动更新在替换程序时报错（Security validation failure: parent process has different executable）。现已修复并端到端验证通过（v1.3.1 及之后版本可正常自动更新）。⚠️ 由于 v1.2.0 / v1.3.0 内置的更新逻辑本身有缺陷，这些版本的用户需手动下载 v1.3.1 一次——详见下方提示。
 
 ## What's Fixed / 修复内容
 
 - Fixed auto-update failure: clear PyInstaller runtime env vars (_PYI_*) before launching the new app, so it is no longer mistaken for a child process / 修复自动更新失败：更新时清除 PyInstaller 运行时环境变量（_PYI_*），新程序不再被误判为子进程
 - Added update_error.log for easier troubleshooting / 新增更新错误日志 update_error.log，方便排查
 - Rebuilt the release binary (the v1.3.0 package binary was accidentally identical to v1.2.0) / 重新打包发布版（修正 v1.3.0 包内程序与 v1.2.0 相同的问题）
+
+## ⚠️ Important for v1.2.0 / v1.3.0 users / 重要提示（v1.2.0 / v1.3.0 用户）
+
+The auto-updater inside v1.2.0 / v1.3.0 has a bug and **cannot auto-upgrade to this version**.
+Please **manually download v1.3.1** (portable zip or exe) once. After installing v1.3.1, auto-update works normally again.
+
+v1.2.0 / v1.3.0 自带的自动更新逻辑存在缺陷，**无法自动升级到本版**。请**手动下载 v1.3.1**（分发包或 exe）一次；安装 v1.3.1 后自动更新恢复正常。
 
 See CHANGELOG.md / 详见 CHANGELOG.md。
 
