@@ -36,6 +36,14 @@ class PluginAPI:
         self.presets = {}         # name -> template（模板预设）
         self.styles = {}          # name -> (label, renderer)（自定义水印样式）
         self.export_hooks = []    # [func(img, meta, settings) -> img|None]（导出前处理）
+        self.setting_specs = []   # [(plugin_name, key, spec)]（插件设置项）
+        self.plugin_name = ''     # 当前加载的插件名
+
+    def add_setting(self, key, label, kind='text', default='', options=None):
+        """注册插件设置项（在「插件设置」窗口显示并保存到 config.json）。
+        kind: 'text' | 'file' | 'number' | 'select' | 'bool'"""
+        spec = {'label': label, 'kind': kind, 'default': default, 'options': list(options or [])}
+        self.setting_specs.append((self.plugin_name, key, spec))
 
     def add_token(self, name, func):
         if isinstance(name, str) and callable(func):
@@ -77,6 +85,7 @@ def load_plugins():
         if not os.path.isfile(main_py):
             continue
         try:
+            api.plugin_name = name
             spec = importlib.util.spec_from_file_location('cwm_plugin_' + name, main_py)
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
@@ -100,11 +109,21 @@ def reload_plugins():
     for fname, fspec in PLUGIN_API.formats.items():
         FORMAT_CHOICES.append((fname, fspec['label']))
     _rebuild_presets()
+    _rebuild_plugin_settings()
     return PLUGIN_API, PLUGIN_NAMES, PLUGIN_ERRORS
 
 
 # ==================== 全局 ====================
 PLUGIN_API, PLUGIN_NAMES, PLUGIN_ERRORS = load_plugins()
+
+def _rebuild_plugin_settings():
+    global PLUGIN_SETTINGS
+    PLUGIN_SETTINGS = {}
+    for pname, key, spec in PLUGIN_API.setting_specs:
+        PLUGIN_SETTINGS.setdefault(pname, {})[key] = spec
+
+PLUGIN_SETTINGS = {}
+_rebuild_plugin_settings()
 
 FORMAT_CHOICES = [('jpg', 'JPG（可保留EXIF）'), ('png', 'PNG（无损）'), ('webp', 'WebP'), ('bmp', 'BMP')]
 for fname, fspec in PLUGIN_API.formats.items():
@@ -133,11 +152,16 @@ _NUM_KEYS = ('font_size_pct', 'line_spacing', 'text_opacity', 'offset_x_pct', 'o
 
 def load_config():
     cfg = dict(photo.DEFAULT_SETTINGS)
+    cfg['plugin_values'] = {}
     try:
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             saved = json.load(f)
         if isinstance(saved, dict):
             for k, v in saved.items():
+                if k == 'plugin_values':
+                    if isinstance(v, dict):
+                        cfg['plugin_values'] = dict(v)
+                    continue
                 if k not in cfg:
                     continue
                 if k == 'update_url' and not v:
@@ -178,6 +202,7 @@ def camera_name_for(meta):
 def build_values(meta, settings):
     values = photo.values_for(meta, settings)
     values['camera'] = (settings.get('camera_override') or '').strip() or camera_name_for(meta)
+    values['raw'] = bool((meta or {}).get('raw'))
     for name, func in PLUGIN_API.tokens.items():
         try:
             v = func(meta, settings)
@@ -297,6 +322,99 @@ class PluginManagerWindow:
             self.parent.status_var.set('插件已添加')
         except Exception as e:
             messagebox.showerror(tr('添加插件失败'), str(e))
+
+
+# ==================== 插件设置窗口 ====================
+class PluginSettingsWindow:
+    def __init__(self, parent):
+        self.parent = parent
+        self.win = tk.Toplevel(parent.root)
+        self.win.title(tr('插件设置'))
+        self.win.geometry('560x460')
+        self.win.transient(parent.root)
+        self.win.grab_set()
+        self.widgets = {}
+        self._build()
+
+    def _build(self):
+        ttk.Label(self.win, text=tr('插件设置会保存到 config.json，重启后保留'),
+                  foreground='#888').pack(anchor='w', padx=8, pady=(6, 2))
+        body = ttk.Frame(self.win)
+        body.pack(fill='both', expand=True, padx=8, pady=4)
+        canvas = tk.Canvas(body, highlightthickness=0)
+        sb = ttk.Scrollbar(body, orient='vertical', command=canvas.yview)
+        inner = ttk.Frame(canvas)
+        inner.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+        canvas.create_window((0, 0), window=inner, anchor='nw')
+        canvas.configure(yscrollcommand=sb.set)
+        canvas.pack(side='left', fill='both', expand=True)
+        sb.pack(side='right', fill='y')
+        self._fill(inner)
+
+        bottom = ttk.Frame(self.win)
+        bottom.pack(fill='x', padx=8, pady=6)
+        ttk.Button(bottom, text=tr('保存'), command=self.save).pack(side='right')
+        ttk.Button(bottom, text=tr('关闭'), command=self.win.destroy).pack(side='right', padx=6)
+
+    def _fill(self, inner):
+        vals = self.parent.settings.get('plugin_values', {})
+        for pname in PLUGIN_SETTINGS:
+            grp = ttk.LabelFrame(inner, text=pname)
+            grp.pack(fill='x', padx=4, pady=4)
+            pvals = vals.get(pname, {})
+            self.widgets[pname] = {}
+            for key, spec in PLUGIN_SETTINGS[pname].items():
+                row = ttk.Frame(grp)
+                row.pack(fill='x', padx=6, pady=3)
+                ttk.Label(row, text=spec['label'], width=18).pack(side='left')
+                cur = pvals.get(key, spec['default'])
+                kind = spec['kind']
+                if kind == 'file':
+                    var = tk.StringVar(value=str(cur))
+                    ent = ttk.Entry(row, textvariable=var)
+                    ent.pack(side='left', fill='x', expand=True)
+                    ttk.Button(row, text=tr('浏览'), command=lambda pn=pname, k=key, v=var: self._browse(v)).pack(side='left', padx=4)
+                    self.widgets[pname][key] = ('var', var)
+                elif kind == 'select':
+                    var = tk.StringVar(value=str(cur))
+                    ttk.Combobox(row, textvariable=var, values=spec['options'], state='readonly', width=18).pack(side='left')
+                    self.widgets[pname][key] = ('var', var)
+                elif kind == 'bool':
+                    var = tk.BooleanVar(value=bool(cur))
+                    ttk.Checkbutton(row, variable=var).pack(side='left')
+                    self.widgets[pname][key] = ('var', var)
+                elif kind == 'number':
+                    var = tk.StringVar(value=str(cur))
+                    ttk.Entry(row, textvariable=var, width=12).pack(side='left')
+                    self.widgets[pname][key] = ('var', var)
+                else:
+                    var = tk.StringVar(value=str(cur))
+                    ttk.Entry(row, textvariable=var).pack(side='left', fill='x', expand=True)
+                    self.widgets[pname][key] = ('var', var)
+
+    def _browse(self, var):
+        path = filedialog.askopenfilename(title=tr('选择文件'))
+        if path:
+            var.set(path)
+
+    def save(self):
+        vals = self.parent.settings.setdefault('plugin_values', {})
+        for pname, keys in self.widgets.items():
+            pvals = vals.setdefault(pname, {})
+            for key, (_kind, var) in keys.items():
+                spec = PLUGIN_SETTINGS[pname][key]
+                if spec['kind'] == 'bool':
+                    pvals[key] = bool(var.get())
+                elif spec['kind'] == 'number':
+                    try:
+                        pvals[key] = float(var.get())
+                    except Exception:
+                        pvals[key] = spec['default']
+                else:
+                    pvals[key] = str(var.get())
+        save_config(self.parent.settings)
+        self.parent.status_var.set(tr('插件设置已保存'))
+        self.parent._schedule_preview()
 
 
 # ==================== 主界面 ====================
@@ -579,6 +697,7 @@ class App:
         row2 = ttk.Frame(f)
         row2.pack(fill='x', pady=2)
         ttk.Button(row2, text=tr('插件管理'), command=self.open_plugin_manager).pack(side='left')
+        ttk.Button(row2, text=tr('插件设置'), command=self.open_plugin_settings).pack(side='left', padx=6)
         ttk.Button(row2, text=tr('检查更新'), command=self.check_update).pack(side='left', padx=6)
         ttk.Label(row2, text=tr('当前版本 v') + APP_VERSION, foreground='#888').pack(side='left', padx=6)
         ttk.Label(f, text=tr('作者：Shiraijikuu　·　AI 协助：OpenAI Codex　·　MIT 开源'),
@@ -796,6 +915,12 @@ class App:
     # ---------- 插件管理 ----------
     def open_plugin_manager(self):
         PluginManagerWindow(self)
+
+    def open_plugin_settings(self):
+        if not PLUGIN_SETTINGS:
+            messagebox.showinfo(tr('插件设置'), tr('当前没有插件注册设置项'))
+            return
+        PluginSettingsWindow(self)
 
     def _style_labels(self):
         """返回 {显示名: 样式键}"""

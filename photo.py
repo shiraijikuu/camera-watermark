@@ -705,6 +705,7 @@ DEFAULT_SETTINGS = {
     'update_url': 'https://raw.githubusercontent.com/shiraijikuu/camera-watermark/main/update.json',
     'language': 'zh',
     'style': 'default',
+    'plugin_values': {},
     'camera_override': '',
     'font_family': '微软雅黑',
     'font_size_pct': 2.2,

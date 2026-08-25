@@ -115,6 +115,45 @@ def register(api):
 
 ### 7. 预留：`api.settings_extra`（未来扩展 UI 设置项用）
 
+
+### 8. 插件设置项 `api.add_setting(key, label, kind, default, options)`
+
+插件可以注册设置项，在「导出」页 ->「插件设置」窗口里调整，自动保存到 config.json，
+渲染时通过 `settings['plugin_values'][插件名][key]` 读取。
+
+- `kind`：`text` / `file`（文件选择）/ `number` / `select`（下拉）/ `bool`（勾选）
+- `options`：select 时的选项列表
+
+```python
+def register(api):
+    api.add_setting('image', '水印图片', 'file', '')
+    api.add_setting('size', '大小 %', 'number', 15)
+    api.add_setting('pos', '位置', 'select', '右下',
+                    options=['左上', '上中', '右上', '左中', '中', '右中', '左下', '下中', '右下'])
+
+    def render(img, settings, values):
+        vals = settings['plugin_values']['my-plugin']
+        path = vals.get('image', '')
+        # ... 用 path / size / pos 绘制
+        return img
+    api.add_watermark_style('my_style', '我的样式', render)
+```
+
+> 插件内可通过 `values['raw']` 判断当前照片是否为 RAW（可据此跳过，避免处理过慢）。
+
+## 全部 API 一览
+
+| 方法 | 作用 |
+|------|------|
+| add_token(name, func) | 新增水印模板变量 {name} |
+| add_camera_name(make, model, friendly) | 覆盖相机显示名 |
+| add_format(name, ext, label, save_func) | 新增导出格式 |
+| add_template_preset(name, template) | 新增模板预设 |
+| add_watermark_style(name, label, renderer) | 新增自定义水印样式 |
+| on_export(func) | 导出前处理钩子 |
+| add_setting(key, label, kind, default, options) | 新增插件设置项（插件设置窗口） |
+| add_setting(key, label, kind, default, options) | 新增插件设置项（插件设置窗口） |
+
 ## 全部 API 一览
 
 | 方法 | 作用 |
