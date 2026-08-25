@@ -524,6 +524,118 @@ class PluginSettingsWindow:
                 self.parent._on_change()
 
 
+# ==================== 插件商店窗口 ====================
+class PluginStoreWindow:
+    def __init__(self, parent):
+        self.parent = parent
+        self.win = tk.Toplevel(parent.root)
+        self.win.title(tr('插件商店'))
+        self.win.geometry('680x460')
+        self.win.transient(parent.root)
+        self.win.grab_set()
+        self.plugins = []
+        ttk.Label(self.win, text=tr('从插件商店下载并安装插件（安装到 plugins/ 目录，重启或刷新后生效）'),
+                  foreground='#888').pack(anchor='w', padx=8, pady=(6, 2))
+        self.status = tk.StringVar(value=tr('正在加载插件列表…'))
+        ttk.Label(self.win, textvariable=self.status, foreground='#666').pack(anchor='w', padx=8)
+        self.box = ttk.Frame(self.win)
+        self.box.pack(fill='both', expand=True, padx=8, pady=4)
+        bottom = ttk.Frame(self.win)
+        bottom.pack(fill='x', padx=8, pady=6)
+        ttk.Button(bottom, text=tr('刷新'), command=self.load).pack(side='right')
+        ttk.Button(bottom, text=tr('关闭'), command=self.win.destroy).pack(side='right', padx=6)
+        self.load()
+
+    def load(self):
+        self.status.set(tr('正在加载插件列表…'))
+        url = (self.parent.settings.get('plugin_store_url') or '').strip()
+        if not url:
+            self.status.set(tr('未配置插件商店地址（config.json 的 plugin_store_url）'))
+            return
+        threading.Thread(target=self._load_worker, args=(url,), daemon=True).start()
+
+    def _load_worker(self, url):
+        try:
+            with urllib.request.urlopen(url, timeout=25) as r:
+                data = json.loads(r.read().decode('utf-8'))
+            self.plugins = data.get('plugins', []) if isinstance(data, dict) else []
+            self.parent.root.after(0, self._render)
+        except Exception as e:
+            self.parent.root.after(0, lambda: self.status.set(tr('加载失败：') + str(e)))
+
+    def _render(self):
+        for w in self.box.winfo_children():
+            w.destroy()
+        if not self.plugins:
+            self.status.set(tr('商店里暂无插件'))
+            return
+        self.status.set(tr('共 %d 个插件') % len(self.plugins))
+        installed = set(PLUGIN_NAMES)
+        for p in self.plugins:
+            pid = str(p.get('id', ''))
+            row = ttk.LabelFrame(self.box, text=str(p.get('name', pid)))
+            row.pack(fill='x', padx=2, pady=3)
+            info = 'v%s · %s · %s' % (p.get('version', '?'), p.get('author', ''), p.get('license', ''))
+            ttk.Label(row, text=info, foreground='#888').pack(anchor='w', padx=6)
+            ttk.Label(row, text=str(p.get('description', '')), wraplength=560,
+                      justify='left').pack(anchor='w', padx=6)
+            bar = ttk.Frame(row)
+            bar.pack(fill='x', padx=6, pady=2)
+            if pid in installed:
+                ttk.Label(bar, text=tr('已安装'), foreground='#3b82f6').pack(side='left')
+            else:
+                ttk.Button(bar, text=tr('安装'), command=lambda pp=p: self.install(pp)).pack(side='left')
+            repo = str(p.get('repo', ''))
+            if repo:
+                ttk.Button(bar, text=tr('打开仓库'), command=lambda pp=repo: os.startfile('https://github.com/' + pp)).pack(side='left', padx=6)
+
+    def install(self, p):
+        self.status.set(tr('正在下载并安装…'))
+        threading.Thread(target=self._install_worker, args=(p,), daemon=True).start()
+
+    def _install_worker(self, p):
+        pid = str(p.get('id', ''))
+        url = str(p.get('install_url', ''))
+        tmp = os.path.join(APP_DIR, '_plugin_tmp')
+        try:
+            if not url:
+                raise ValueError('no install_url')
+            with urllib.request.urlopen(url, timeout=180) as r:
+                data = r.read()
+            if os.path.isdir(tmp):
+                shutil.rmtree(tmp)
+            os.makedirs(tmp, exist_ok=True)
+            zip_path = os.path.join(tmp, 'plugin.zip')
+            with open(zip_path, 'wb') as f:
+                f.write(data)
+            with zipfile.ZipFile(zip_path) as z:
+                z.extractall(tmp)
+            plugin_py = None
+            for root, dirs, files in os.walk(tmp):
+                if 'plugin.py' in files:
+                    plugin_py = os.path.join(root, 'plugin.py')
+                    break
+            if not plugin_py:
+                raise ValueError(tr('压缩包里没有 plugin.py'))
+            folder = os.path.dirname(plugin_py)
+            target = os.path.join(PLUGINS_DIR, pid)
+            if os.path.isdir(target):
+                shutil.rmtree(target)
+            shutil.copytree(folder, target)
+            shutil.rmtree(tmp, ignore_errors=True)
+            self.parent.root.after(0, self._install_done)
+        except Exception as e:
+            shutil.rmtree(tmp, ignore_errors=True)
+            self.parent.root.after(0, lambda: self.status.set(tr('安装失败：') + str(e)))
+
+    def _install_done(self):
+        reload_plugins()
+        self.parent._refresh_style_choices()
+        self.parent._refresh_format_choices()
+        self.status.set(tr('安装完成，已刷新插件列表'))
+        self._render()
+
+
 # ==================== 主界面 ====================
 class App:
     def __init__(self, root):
@@ -810,6 +922,7 @@ class App:
         row2.pack(fill='x', pady=2)
         ttk.Button(row2, text=tr('插件管理'), command=self.open_plugin_manager).pack(side='left')
         ttk.Button(row2, text=tr('插件设置'), command=self.open_plugin_settings).pack(side='left', padx=6)
+        ttk.Button(row2, text=tr('插件商店'), command=self.open_plugin_store).pack(side='left', padx=6)
         ttk.Button(row2, text=tr('检查更新'), command=self.check_update).pack(side='left', padx=6)
         ttk.Label(row2, text=tr('当前版本 v') + APP_VERSION, foreground='#888').pack(side='left', padx=6)
         ttk.Label(f, text=tr('作者：Shiraijikuu　·　AI 协助：OpenAI Codex　·　MIT 开源'),
@@ -1041,6 +1154,9 @@ class App:
             messagebox.showinfo(tr('插件设置'), tr('当前没有插件注册设置项'))
             return
         PluginSettingsWindow(self)
+
+    def open_plugin_store(self):
+        PluginStoreWindow(self)
 
     def _style_labels(self):
         """返回 {显示名: 样式键}"""

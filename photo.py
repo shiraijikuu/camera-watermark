@@ -711,6 +711,7 @@ DEFAULT_SETTINGS = {
     'template': '{make}  {model}   {focal}  {shutter}  {aperture}  {iso}',
     'custom_template': '',
     'update_url': 'https://raw.githubusercontent.com/shiraijikuu/camera-watermark/main/update.json',
+    'plugin_store_url': 'https://raw.githubusercontent.com/shiraijikuu/camera-watermark/main/plugins.json',
     'language': 'zh',
     'style': 'default',
     'plugin_values': {},
