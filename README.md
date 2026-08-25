@@ -114,17 +114,21 @@ plugins, and speaks 中文 / English / 繁體中文.
 
 版本历史见 CHANGELOG.md；发布包按版本放在 releases/vX.Y.Z/ 目录。
 
-## 更新公告（v1.1.0）
+## Release Notes / 更新公告（v1.1.0）
 
-**新增插件 API（更强的可扩展性）**
+**EN: Extended plugin API (more extensible)**
+- Plugins can now add template presets, custom watermark rendering styles, and pre-save processing hooks
+- New "Watermark Style" dropdown on the Style tab
+- Example plugin updated to demonstrate all 6 extension points
+- Several stability fixes
+
+**中文：新增插件 API（更强的可扩展性）**
 - 插件现在可以新增模板预设、自定义水印渲染样式、注册导出前处理钩子
 - 「样式」页新增「水印样式」下拉框
-
-**其他**
 - 示例插件更新：演示全部 6 种插件扩展点
 - 修复若干稳定性问题
 
-详见 CHANGELOG.md。
+详见 / See CHANGELOG.md。
 
 ## 致谢
 
