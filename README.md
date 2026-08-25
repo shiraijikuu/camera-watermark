@@ -1,13 +1,14 @@
 # Photo Watermark (PWM) — 相机照片水印工具
 
-**EN:** An open-source Windows desktop app that auto-reads camera EXIF data and adds
-camera model / shutter / aperture / ISO watermarks to your photos. Supports RAW,
-adjustable position / size / color / font, batch export to JPG / PNG / WebP / BMP,
-a plugin system, and a 3-language interface (中文 / English / 繁體中文).
+**EN:** Photo Watermark is a friendly, open-source Windows helper for photographers.
+Pick a folder of camera photos, and it automatically reads the EXIF and stamps a
+clean watermark with your camera model, shutter, aperture and ISO. It handles RAW,
+lets you freely tweak position, size, color and font, exports in a click, supports
+plugins, and speaks 中文 / English / 繁體中文.
 
-**中文：** 开源 Windows 桌面软件：自动读取相机照片 EXIF 参数，添加相机型号 / 快门 /
-光圈 / ISO 水印；支持 RAW、位置 / 大小 / 颜色 / 字体自由调整、批量导出
-JPG / PNG / WebP / BMP、插件系统与三语界面。
+**中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机
+参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、
+大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
 - **当前版本：** v1.1.0
 - **作者：** Shiraijikuu (GitHub)
