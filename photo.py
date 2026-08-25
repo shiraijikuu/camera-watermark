@@ -571,8 +571,9 @@ def render_watermark(img, settings, values, fonts_dir=None):
         by = H - margin_y - inner_h
     bx += W * settings.get('offset_x_pct', 0.0) / 100
     by += H * settings.get('offset_y_pct', 0.0) / 100
-    bx = max(0, min(W - inner_w, bx))
-    by = max(0, min(H - inner_h, by))
+    # 允许通过偏移把水印推向或超出边缘（保留至少 2px 可见，避免完全移出画面）
+    bx = max(-inner_w + 2, min(W - 2, bx))
+    by = max(-inner_h + 2, min(H - 2, by))
     bx = int(round(bx))
     by = int(round(by))
     inner_w = int(round(inner_w))
@@ -714,7 +715,7 @@ DEFAULT_SETTINGS = {
     'anchor': 7,
     'offset_x_pct': 0.0,
     'offset_y_pct': 0.0,
-    'margin_pct': 1.5,
+    'margin_pct': 0.5,
     'bg_enabled': True,
     'bg_color': '#000000',
     'bg_opacity': 0.45,

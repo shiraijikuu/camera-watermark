@@ -504,6 +504,9 @@ class App:
         self.margin_label = ttk.Label(row, text='', width=6)
         self.margin_label.pack(side='left')
 
+        ttk.Label(f, text=tr('提示：边距=0 时贴底；纵向偏移为正值可把水印推向/超出底边'),
+                  foreground='#888').pack(anchor='w', pady=(4, 0))
+
 
     def _build_bg_tab(self, nb):
         f = ttk.Frame(nb, padding=8)
