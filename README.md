@@ -108,7 +108,7 @@ Set update_url in config.json (JSON manifest URL), click "Check for Updates" to 
     pip install -r requirements-dev.txt
     pyinstaller --noconfirm --clean --onefile --windowed --name "PhotoWatermark" --hidden-import "PIL._tkinter_finder" app.py
 
-Put plugins/, fonts/ and 使用说明.txt next to the exe in dist/ to distribute. 把 plugins/、fonts/、使用说明.txt 等放在 dist/ 的 exe 旁边即可分发。
+Put plugins/, fonts/ and USAGE.txt next to the exe in dist/ to distribute. 把 plugins/、fonts/、USAGE.txt 等放在 dist/ 的 exe 旁边即可分发。
 
 ## Tests / 测试
 

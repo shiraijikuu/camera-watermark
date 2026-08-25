@@ -140,6 +140,8 @@ def load_config():
             for k, v in saved.items():
                 if k not in cfg:
                     continue
+                if k == 'update_url' and not v:
+                    continue  # 空值用默认更新地址
                 if k in _NUM_KEYS:
                     try:
                         v = float(v)

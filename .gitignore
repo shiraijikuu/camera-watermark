@@ -7,5 +7,6 @@ build/
 dist/
 releases/
 开源版/
+open-source/
 fonts/
 *.zip
