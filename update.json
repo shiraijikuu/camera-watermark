@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.2.0/PhotoWatermark-v1.2.0.exe",
-  "note": "v1.2.0: Plugin settings & thumbnail preset gallery, text+image watermark coexist, live preview, font improvements. / 插件设置、图片水印画廊、实时预览、字体改进。"
+  "version": "1.3.0",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.3.0/PhotoWatermark-v1.3.0.exe",
+  "note": "v1.3.0: In-app plugin store (browse & one-click install plugins). / 内置插件商店，可浏览并一键安装插件。"
 }

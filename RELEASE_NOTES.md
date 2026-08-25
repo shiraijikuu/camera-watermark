@@ -1,5 +1,20 @@
 ---
 
+# 📢 Photo Watermark v1.3.0 — Release Notes / 更新公告
+
+**EN:** Now with a built-in **Plugin Store**! Browse and install plugins with one click inside the app.
+**中文：** 新增内置**插件商店**！在软件里就能浏览并一键安装插件。
+
+## What's New / 新增
+
+- Plugin Store window: browse catalog, one-click install, auto-refresh / 插件商店：浏览目录、一键安装、自动刷新
+- plugins.json catalog + pwm-plugin discovery tag / 插件目录 + 统一发现标签
+
+See CHANGELOG.md / 详见 CHANGELOG.md。
+
+---
+---
+
 # 📢 Photo Watermark v1.2.0 — Release Notes / 更新公告
 
 **EN:** Big update! Plugin Settings window with live preview, thumbnail gallery for preset watermarks, text + image watermarks together, and font improvements.

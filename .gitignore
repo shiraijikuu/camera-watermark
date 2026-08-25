@@ -13,3 +13,5 @@ fonts/
 plugins/*/
 plugin-repos/
 _stage-dist/
+_plugin_tmp/
+_testplugins/
