@@ -25,7 +25,7 @@ else:
 CONFIG_PATH = os.path.join(APP_DIR, 'config.json')
 PLUGINS_DIR = os.path.join(APP_DIR, 'plugins')
 FONTS_DIR = os.path.join(APP_DIR, 'fonts')
-APP_VERSION = '1.1.0'
+APP_VERSION = '1.2.0'
 
 # ==================== 插件系统 ====================
 class PluginAPI:

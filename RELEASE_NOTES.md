@@ -1,3 +1,22 @@
+---
+
+# 📢 Photo Watermark v1.2.0 — Release Notes / 更新公告
+
+**EN:** Big update! Plugin Settings window with live preview, thumbnail gallery for preset watermarks, text + image watermarks together, and font improvements.
+**中文：** 大版本更新！新增插件设置窗口（实时预览）、预设水印缩略图画廊、文字+图片水印同屏，以及字体改进。
+
+## What's New / 新增
+
+- Plugin Settings window + live preview / 插件设置窗口 + 实时预览
+- Thumbnail gallery to pick preset watermarks / 预设水印缩略图画廊
+- Text + image watermarks can coexist / 文字水印 + 图片水印同时存在
+- Image watermark plugin: 10 built-in GIF presets, custom PNG/JPG/GIF / 图片水印插件：10 张预设 + 自定义
+- Font scan improvements (subfolders, refresh, fallback) / 字体扫描改进
+- Plugin versions shown in Plugin Manager / 插件管理显示版本号
+
+See CHANGELOG.md / 详见 CHANGELOG.md。
+
+---
 # 📢 Photo Watermark v1.1.0 — Release Notes / 更新公告
 
 Thank you for using Photo Watermark! This update focuses on making the **plugin system more powerful**, so developers can extend the app in more ways. 感谢使用 Photo Watermark！本次更新重点是**增强插件系统的可扩展性**，让开发者可以做更多事情。

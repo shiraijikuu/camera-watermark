@@ -4,7 +4,7 @@
 
 **中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
-- **Version / 版本：** v1.1.0
+- **Version / 版本：** v1.2.0
 - **Author / 作者：** Shiraijikuu (GitHub)
 - **AI assistance / AI 协助：** OpenAI Codex
 - **License / 许可证：** MIT (LICENSE)
@@ -123,7 +123,7 @@ Strict semantic versioning x.y.z / 严格按照语义化版本 x.y.z 管理：
 
 See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.md；发布包按版本放在 releases/vX.Y.Z/ 目录。
 
-## Release Notes / 更新公告（v1.1.0）
+## Release Notes / 更新公告（v1.2.0）
 
 **EN: Extended plugin API (more extensible)**
 - Plugins can now add template presets, custom watermark rendering styles, and pre-save processing hooks
