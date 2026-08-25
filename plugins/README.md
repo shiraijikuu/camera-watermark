@@ -11,5 +11,5 @@ then restart the app. See PLUGINS.md for the plugin API.
 
 | Plugin / 插件 | Repository / 仓库 | Description / 说明 |
 |---------------|-------------------|--------------------|
-| image-watermark | (coming soon / 待发布) | Custom image watermark (PNG/JPG/GIF static), size/position/rotation/opacity, skips RAW / 自定义图片水印 |
+| image-watermark | (coming soon / 待发布) | Custom image watermark with 10 built-in GIF presets, size/position/rotation/opacity, skips RAW / 自定义图片水印（内置 10 张 GIF 预设） |
 | example-plugin | (coming soon / 待发布) | Plugin API demo / 插件 API 示例 |

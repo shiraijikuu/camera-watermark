@@ -386,6 +386,48 @@ class PluginSettingsWindow:
                     var = tk.BooleanVar(value=bool(cur))
                     ttk.Checkbutton(row, variable=var).pack(side='left')
                     self.widgets[pname][key] = ('var', var)
+                elif kind == 'gallery':
+                    opts = spec.get('options') or []
+                    cur = str(pvals.get(key, spec.get('default', '')))
+                    gal = ttk.Frame(row)
+                    gal.pack(side='left', fill='x', expand=True)
+                    hb = ttk.Frame(gal)
+                    hb.pack(fill='x')
+                    canvas = tk.Canvas(hb, height=96, highlightthickness=0)
+                    hsb = ttk.Scrollbar(gal, orient='horizontal', command=canvas.xview)
+                    inner = ttk.Frame(canvas)
+                    inner.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+                    canvas.create_window((0, 0), window=inner, anchor='nw')
+                    canvas.configure(xscrollcommand=hsb.set)
+                    canvas.pack(side='left', fill='both', expand=True)
+                    hsb.pack(side='bottom', fill='x')
+                    tiles = []
+                    for it in opts:
+                        lbl = str(it.get('label', ''))
+                        ipath = it.get('image')
+                        selected = (lbl == cur)
+                        tile = tk.Frame(inner, bd=2, relief='solid',
+                                        bg='#3b82f6' if selected else '#2a2d3a')
+                        tile.pack(side='left', padx=3, pady=2)
+                        th = tk.Label(tile, text=lbl[:8], fg='#eee', bg=tile['bg'])
+                        if ipath and os.path.exists(str(ipath)):
+                            try:
+                                im = Image.open(str(ipath))
+                                im.seek(0)
+                                im = im.convert('RGBA')
+                                im.thumbnail((56, 56), Image.LANCZOS)
+                                ph = ImageTk.PhotoImage(im)
+                                if not hasattr(self, '_gal_photos'):
+                                    self._gal_photos = []
+                                self._gal_photos.append(ph)
+                                th.config(image=ph, compound='top')
+                            except Exception:
+                                pass
+                        th.pack(padx=2, pady=2)
+                        th.bind('<Button-1>', lambda e, it=it, t=tile: self._gallery_pick(pname, key, it, t))
+                        tile.bind('<Button-1>', lambda e, it=it, t=tile: self._gallery_pick(pname, key, it, t))
+                        tiles.append((tile, it))
+                    self.widgets[pname][key] = ('gallery', {'tiles': tiles})
                 elif kind == 'range':
                     try:
                         cur_f = float(cur)
@@ -432,12 +474,28 @@ class PluginSettingsWindow:
             return
         self.parent._schedule_preview()
 
+    def _gallery_pick(self, pname, key, item, tile):
+        """点击预设缩略图：高亮选中项 + 实时更新预览"""
+        meta = self.widgets[pname][key][1]
+        for t, it in meta['tiles']:
+            selected = (it is item)
+            bg = '#3b82f6' if selected else '#2a2d3a'
+            t.config(bg=bg)
+            for ch in t.winfo_children():
+                ch.config(bg=bg)
+        lbl = str(item.get('label', ''))
+        val = '' if not item.get('image') else lbl
+        self.parent.settings.setdefault('plugin_values', {}).setdefault(pname, {})[key] = val
+        self.parent._schedule_preview()
+
     def save(self):
         vals = self.parent.settings.setdefault('plugin_values', {})
         for pname, keys in self.widgets.items():
             pvals = vals.setdefault(pname, {})
             for key, (_kind, var) in keys.items():
                 spec = PLUGIN_SETTINGS[pname][key]
+                if spec['kind'] == 'gallery':
+                    continue  # 值在点击缩略图时已实时更新
                 if spec['kind'] == 'bool':
                     pvals[key] = bool(var.get())
                 elif spec['kind'] in ('number', 'range'):

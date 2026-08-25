@@ -12,3 +12,4 @@ fonts/
 *.zip
 plugins/*/
 plugin-repos/
+_stage-dist/
