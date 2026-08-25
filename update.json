@@ -1,5 +1,5 @@
 {
-  "version": "1.3.0",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.3.0/PhotoWatermark-v1.3.0.exe",
-  "note": "v1.3.0: In-app plugin store (browse & one-click install plugins). / 内置插件商店，可浏览并一键安装插件。"
+  "version": "1.3.1",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.3.1/PhotoWatermark-v1.3.1.exe",
+  "note": "v1.3.1: Fix auto-update failure (Security validation failure). / 修复自动更新失败（Security validation failure）。"
 }

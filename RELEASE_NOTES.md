@@ -1,5 +1,18 @@
----
+# 📢 Photo Watermark v1.3.1 — Release Notes / 更新公告
 
+**EN:** This is a hot-fix release. Auto-update was failing with "Security validation failure: parent process has different executable" when replacing the app. It is now fixed and verified — updating from v1.2.0 / v1.3.0 to v1.3.1 works.
+
+**中文：** 本次为热修复版本。此前自动更新在替换程序时报错（Security validation failure: parent process has different executable），现已修复并验证通过——从 v1.2.0 / v1.3.0 一键更新到 v1.3.1 正常可用。
+
+## What's Fixed / 修复内容
+
+- Fixed auto-update failure: clear PyInstaller runtime env vars (_PYI_*) before launching the new app, so it is no longer mistaken for a child process / 修复自动更新失败：更新时清除 PyInstaller 运行时环境变量（_PYI_*），新程序不再被误判为子进程
+- Added update_error.log for easier troubleshooting / 新增更新错误日志 update_error.log，方便排查
+- Rebuilt the release binary (the v1.3.0 package binary was accidentally identical to v1.2.0) / 重新打包发布版（修正 v1.3.0 包内程序与 v1.2.0 相同的问题）
+
+See CHANGELOG.md / 详见 CHANGELOG.md。
+
+---
 # 📢 Photo Watermark v1.3.0 — Release Notes / 更新公告
 
 **EN:** Now with a built-in **Plugin Store**! Browse and install plugins with one click inside the app.

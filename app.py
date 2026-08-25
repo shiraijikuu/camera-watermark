@@ -25,7 +25,7 @@ else:
 CONFIG_PATH = os.path.join(APP_DIR, 'config.json')
 PLUGINS_DIR = os.path.join(APP_DIR, 'plugins')
 FONTS_DIR = os.path.join(APP_DIR, 'fonts')
-APP_VERSION = '1.3.0'
+APP_VERSION = '1.3.1'
 
 # ==================== 插件系统 ====================
 class PluginAPI:
@@ -1272,15 +1272,29 @@ class App:
         def vq(s):
             return '"' + s.replace('"', '""') + '"'
 
-        # VBS：等待 → 结束旧进程 → 复制新 exe → 启动新程序 → 删除脚本
-        # 用 wscript + ShellExecute 启动，不经过 cmd，避免安全校验失败
+        # VBS：等待 → 结束旧进程 → 复制新 exe → 清掉 PyInstaller 环境变量 →
+        #      启动新程序 → 删除脚本
+        # 注意：必须清掉 _PYI_* 环境变量，否则新 exe（onefile 引导器）会把自己
+        # 当成 PyInstaller 子进程，去校验父进程（wscript.exe）的路径而报
+        # "Security validation failure: parent process has different executable"
+        log = os.path.join(APP_DIR, 'update_error.log')
         vbs = ('Set fso = CreateObject("Scripting.FileSystemObject")\r\n'
-               'WScript.Sleep 1500\r\n'
+               'Set objShell = CreateObject("WScript.Shell")\r\n'
+               'Set logFile = fso.CreateTextFile(' + vq(log) + ', True)\r\n'
                'On Error Resume Next\r\n'
-               'CreateObject("WScript.Shell").Run "taskkill /IM ' + name + ' /F", 0, True\r\n'
+               'WScript.Sleep 1500\r\n'
+               'objShell.Run "taskkill /IM ' + name + ' /F", 0, True\r\n'
+               'If Err.Number <> 0 Then logFile.WriteLine "taskkill: " & Err.Description : Err.Clear\r\n'
                'fso.CopyFile ' + vq(new_exe) + ', ' + vq(exe) + ', True\r\n'
+               'If Err.Number <> 0 Then logFile.WriteLine "copy: " & Err.Description : Err.Clear\r\n'
                'fso.DeleteFile ' + vq(new_exe) + '\r\n'
-               'CreateObject("WScript.Shell").Run ' + vq(exe) + '\r\n'
+               'objShell.Environment("PROCESS").Remove("_PYI_PARENT_PROCESS_LEVEL")\r\n'
+               'objShell.Environment("PROCESS").Remove("_PYI_ARCHIVE_FILE")\r\n'
+               'objShell.Environment("PROCESS").Remove("_PYI_APPLICATION_HOME_DIR")\r\n'
+               'logFile.WriteLine "launching: " & ' + vq(exe) + '\r\n'
+               'objShell.Run ' + vq(exe) + '\r\n'
+               'If Err.Number <> 0 Then logFile.WriteLine "run: " & Err.Description\r\n'
+               'logFile.Close\r\n'
                'fso.DeleteFile WScript.ScriptFullName\r\n')
         try:
             with open(updater, 'w', encoding='gbk') as f:
@@ -1288,6 +1302,10 @@ class App:
         except Exception as e:
             messagebox.showerror(tr('更新失败'), str(e))
             return
+        # 关键修复：清掉 PyInstaller 运行时环境变量，避免被 wscript 继承后再传给
+        # 新 exe，导致新 exe 误以为自己是 onefile 子进程而做父进程校验报错。
+        for _k in ('_PYI_PARENT_PROCESS_LEVEL', '_PYI_ARCHIVE_FILE', '_PYI_APPLICATION_HOME_DIR'):
+            os.environ.pop(_k, None)
         try:
             os.startfile(updater)
         except Exception as e:
