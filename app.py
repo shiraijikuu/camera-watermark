@@ -374,11 +374,13 @@ class PluginSettingsWindow:
                     var = tk.StringVar(value=str(cur))
                     ent = ttk.Entry(row, textvariable=var)
                     ent.pack(side='left', fill='x', expand=True)
-                    ttk.Button(row, text=tr('浏览'), command=lambda pn=pname, k=key, v=var: self._browse(v)).pack(side='left', padx=4)
+                    ttk.Button(row, text=tr('浏览'), command=lambda pn=pname, k=key, v=var: (self._browse(v), self._live(pn, k, v))).pack(side='left', padx=4)
                     self.widgets[pname][key] = ('var', var)
                 elif kind == 'select':
                     var = tk.StringVar(value=str(cur))
-                    ttk.Combobox(row, textvariable=var, values=spec['options'], state='readonly', width=18).pack(side='left')
+                    cb = ttk.Combobox(row, textvariable=var, values=spec['options'], state='readonly', width=18)
+                    cb.pack(side='left')
+                    cb.bind('<<ComboboxSelected>>', lambda _e, pn=pname, k=key, vv=var: self._live(pn, k, vv))
                     self.widgets[pname][key] = ('var', var)
                 elif kind == 'bool':
                     var = tk.BooleanVar(value=bool(cur))
@@ -391,24 +393,44 @@ class PluginSettingsWindow:
                         cur_f = float(spec.get('default', 0))
                     var = tk.DoubleVar(value=cur_f)
                     ttk.Scale(row, from_=float(spec.get('min', 0)), to=float(spec.get('max', 100)),
-                              variable=var).pack(side='left', fill='x', expand=True, padx=6)
+                              variable=var,
+                              command=lambda v, pn=pname, k=key, vv=var: self._live(pn, k, vv)).pack(side='left', fill='x', expand=True, padx=6)
                     vlab = ttk.Label(row, text='%.1f' % cur_f, width=6)
                     vlab.pack(side='left')
                     var.trace_add('write', lambda *a, l=vlab, v=var: l.config(text='%.1f' % float(v.get())))
                     self.widgets[pname][key] = ('var', var)
                 elif kind == 'number':
                     var = tk.StringVar(value=str(cur))
-                    ttk.Entry(row, textvariable=var, width=12).pack(side='left')
+                    ent = ttk.Entry(row, textvariable=var, width=12)
+                    ent.pack(side='left')
+                    ent.bind('<KeyRelease>', lambda _e, pn=pname, k=key, vv=var: self._live(pn, k, vv))
                     self.widgets[pname][key] = ('var', var)
                 else:
                     var = tk.StringVar(value=str(cur))
-                    ttk.Entry(row, textvariable=var).pack(side='left', fill='x', expand=True)
+                    ent = ttk.Entry(row, textvariable=var)
+                    ent.pack(side='left', fill='x', expand=True)
+                    ent.bind('<KeyRelease>', lambda _e, pn=pname, k=key, vv=var: self._live(pn, k, vv))
                     self.widgets[pname][key] = ('var', var)
 
     def _browse(self, var):
         path = filedialog.askopenfilename(title=tr('选择文件'))
         if path:
             var.set(path)
+
+    def _live(self, pname, key, var):
+        """设置变化时立即更新内存值并刷新预览（实时预览，无需点保存）"""
+        vals = self.parent.settings.setdefault('plugin_values', {}).setdefault(pname, {})
+        spec = PLUGIN_SETTINGS[pname][key]
+        try:
+            if spec['kind'] == 'bool':
+                vals[key] = bool(var.get())
+            elif spec['kind'] in ('number', 'range'):
+                vals[key] = float(var.get())
+            else:
+                vals[key] = str(var.get())
+        except Exception:
+            return
+        self.parent._schedule_preview()
 
     def save(self):
         vals = self.parent.settings.setdefault('plugin_values', {})
@@ -584,6 +606,8 @@ class App:
         self.style_combo = ttk.Combobox(srow, textvariable=self.style_var, state='readonly')
         self.style_combo.pack(side='left', fill='x', expand=True, padx=6)
         self._refresh_style_choices()
+        ttk.Label(f, text=tr('选择插件样式后会叠加在文字水印之上（文字+图片可同时显示）'),
+                  foreground='#888').pack(anchor='w', pady=(2, 0))
 
         row = ttk.Frame(f); row.pack(fill='x')
         ttk.Label(row, text=tr('字号(%宽)')).pack(side='left')
@@ -956,14 +980,16 @@ class App:
         self.style_var.set(self._style_labels().get(self.settings.get('style', 'default'), tr('默认')))
 
     def _render_with_style(self, img, settings, values):
+        # 1) 先绘制文字水印
+        out = photo.render_watermark(img, settings, values, fonts_dir=FONTS_DIR)
+        # 2) 再叠加插件水印样式（如图片水印），实现文字 + 图片同时存在
         style = settings.get('style', 'default')
         if style != 'default' and style in PLUGIN_API.styles:
             _label, renderer = PLUGIN_API.styles[style]
-            out = renderer(img, settings, values)
-            if out is None:
-                out = img
-            return out
-        return photo.render_watermark(img, settings, values, fonts_dir=FONTS_DIR)
+            res = renderer(out, settings, values)
+            if res is not None:
+                out = res
+        return out
 
     def _apply_export_hooks(self, img, meta, settings):
         for hook in PLUGIN_API.export_hooks:

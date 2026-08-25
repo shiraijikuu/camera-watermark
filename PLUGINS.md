@@ -1,3 +1,8 @@
+> **Note / 说明：** A plugin watermark style is drawn **on top of** the text watermark,
+> so text and image watermarks can coexist. If you only want the plugin style,
+> leave the text template empty. 插件水印样式会**叠加在文字水印之上**（文字+图片可同时显示）；
+> 若只想用插件样式，把文字模板清空即可。
+
 > **Note / 说明：** Plugins are maintained in **separate repositories** (see plugins/README.md).
 > This document describes the plugin API. 插件在**独立仓库**中单独维护（见 plugins/README.md），本文档介绍插件 API。
 
