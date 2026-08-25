@@ -317,20 +317,23 @@ def _check_update_state(latest, current, mchecksum='', lchecksum=''):
 
 
 def _plugin_update_available(p, installed_meta=None):
-    """判断商店里的插件 p 是否有更新：
+    """判断商店里的插件 p 是否有更新。
+    "已安装" = 已加载插件(PLUGIN_NAMES) ∪ 安装记录(plugins/.installed.json)。
+    本地版本号优先取已加载插件的 PLUGIN_VERSIONS，回退到安装记录。
+    触发条件：
     1) 商店版本号 > 本地已装版本号；
     2) 或商店 checksum（zip 的 SHA-256）与本地安装记录不一致（版本号不变也能检测内容更新）。
     未安装则返回 False。"""
     pid = str(p.get('id', ''))
-    if pid not in PLUGIN_NAMES:
-        return False
-    mver = str(p.get('version', '') or '')
-    lver = str(PLUGIN_VERSIONS.get(pid, '') or '')
-    if mver and lver and _version_newer(mver, lver):
-        return True
     if installed_meta is None:
         installed_meta = _read_installed_meta()
     rec = installed_meta.get(pid, {}) if isinstance(installed_meta, dict) else {}
+    if pid not in PLUGIN_NAMES and not rec:
+        return False
+    mver = str(p.get('version', '') or '')
+    lver = str(PLUGIN_VERSIONS.get(pid, '') or rec.get('version', '') or '')
+    if mver and lver and _version_newer(mver, lver):
+        return True
     msum = str(p.get('checksum', '') or '').strip().lower()
     lsum = str(rec.get('checksum', '') or '').strip().lower()
     if msum and lsum and msum != lsum:
@@ -681,8 +684,8 @@ class PluginStoreWindow:
             self.status.set(tr('商店里暂无插件'))
             return
         self.status.set(tr('共 %d 个插件') % len(self.plugins))
-        installed = set(PLUGIN_NAMES)
         meta = _read_installed_meta()
+        installed = set(PLUGIN_NAMES) | set(meta.keys())   # 已安装 = 已加载 ∪ 安装记录
         for p in self.plugins:
             pid = str(p.get('id', ''))
             row = ttk.LabelFrame(self.box, text=str(p.get('name', pid)))
@@ -696,28 +699,24 @@ class PluginStoreWindow:
             bar = ttk.Frame(row)
             bar.pack(fill='x', padx=6, pady=2)
             if pid in installed:
-                # 已加载成功：正常更新检测
-                lver = str(PLUGIN_VERSIONS.get(pid, '') or '')
+                load_failed = pid not in PLUGIN_NAMES          # 有记录但未加载成功
+                lver = str(PLUGIN_VERSIONS.get(pid, '') or meta.get(pid, {}).get('version', '') or '')
                 if _plugin_update_available(p, meta):
-                    ttk.Label(bar, text=(tr('已安装 v%s → v%s') % (lver, p.get('version', ''))),
-                              foreground='#3b82f6').pack(side='left')
+                    if load_failed:
+                        ttk.Label(bar, text=(tr('已安装 v%s（加载失败）→ v%s') % (lver, p.get('version', ''))),
+                                  foreground='#e23636').pack(side='left')
+                    else:
+                        ttk.Label(bar, text=(tr('已安装 v%s → v%s') % (lver, p.get('version', ''))),
+                                  foreground='#3b82f6').pack(side='left')
                     self._install_button(bar, p, tr('更新'))
                 else:
-                    ttk.Label(bar, text=(tr('已安装 v%s · 最新') % lver) if lver else tr('已安装 · 最新'),
-                              foreground='#3b82f6').pack(side='left')
-            elif pid in meta:
-                # 有安装记录但加载失败：红色提示 + 一键「更新 / 重装」自愈
-                rec = meta.get(pid, {}) or {}
-                lver = str(rec.get('version', '') or '')
-                mver = str(p.get('version', '') or '')
-                if lver and mver and _version_newer(mver, lver):
-                    ttk.Label(bar, text=(tr('已安装 v%s（加载失败）→ v%s') % (lver, mver)),
-                              foreground='#e23636').pack(side='left')
-                    self._install_button(bar, p, tr('更新'))
-                else:
-                    ttk.Label(bar, text=(tr('已安装 v%s · 加载失败') % lver) if lver else tr('已安装 · 加载失败'),
-                              foreground='#e23636').pack(side='left')
-                    self._install_button(bar, p, tr('重装'))
+                    if load_failed:
+                        ttk.Label(bar, text=(tr('已安装 v%s · 加载失败') % lver) if lver else tr('已安装 · 加载失败'),
+                                  foreground='#e23636').pack(side='left')
+                        self._install_button(bar, p, tr('重装'))
+                    else:
+                        ttk.Label(bar, text=(tr('已安装 v%s · 最新') % lver) if lver else tr('已安装 · 最新'),
+                                  foreground='#3b82f6').pack(side='left')
             else:
                 self._install_button(bar, p, tr('安装'))
             repo = str(p.get('repo', ''))
