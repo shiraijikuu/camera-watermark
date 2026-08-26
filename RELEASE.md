@@ -65,6 +65,10 @@ Note: keep dist and open-source out of git (see .gitignore). / 注意：dist 和
 2. Choose tag `vX.Y.Z` / 选择标签 vX.Y.Z
 3. Title: `Photo Watermark vX.Y.Z`
 4. Description: paste the content of RELEASE_NOTES.md (bilingual) / 粘贴 RELEASE_NOTES.md 内容（中英双语）
+
+> **更新公告只保留当前版本 / Release notes keep ONLY the current version:**
+> `RELEASE_NOTES.md` 每次发布新版时**用新版本内容覆盖**（不累积历史）；完整历史见 `CHANGELOG.md`。
+> Overwrite `RELEASE_NOTES.md` with the new version's announcement each release (do not accumulate); full history lives in `CHANGELOG.md`.
 5. Attach these 3 files / 附件拖入这 3 个文件：
    - `PhotoWatermark-x.y.z-portable.zip`
    - `PhotoWatermark-x.y.z-source.zip`
