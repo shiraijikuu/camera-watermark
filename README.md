@@ -125,11 +125,27 @@ Strict semantic versioning x.y.z / 严格按照语义化版本 x.y.z 管理：
 
 See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.md；发布包按版本放在 releases/vX.Y.Z/ 目录。
 
+## Antivirus False Positive / 杀毒软件误报
+
+**EN:** Photo Watermark is open-source (MIT) and built with PyInstaller as an unsigned single-file exe. Some antivirus engines may flag it as a false positive (heuristics are sensitive to unsigned, self-extracting executables that also self-update). If your antivirus quarantines it:
+
+1. **Unblock the downloaded file** (if it shows "Windows protected your PC"): right-click → Properties → Unblock; or run `Unblock-File .\PhotoWatermark.exe` in PowerShell.
+2. **Add an exclusion**: Windows Security → Virus & threat protection → Manage settings → Exclusions → add the folder containing PhotoWatermark.exe.
+3. **Report the false positive to Microsoft**: https://www.microsoft.com/en-us/wdsi/filesubmission (usually cleared within a few days).
+4. Verify it yourself: the source is public (MIT); build from source per RELEASE.md.
+
+**中文：** Photo Watermark 是开源（MIT）软件，用 PyInstaller 打包成无签名的单文件 exe。部分杀毒软件可能误报（启发式引擎对"无签名、自解压、还会自动更新"的程序比较敏感）。如果被杀软隔离：
+
+1. **解除下载锁定**（提示"Windows 已保护你的电脑"时）：右键 → 属性 → 解除锁定；或在 PowerShell 执行 `Unblock-File .\PhotoWatermark.exe`。
+2. **加入排除项**：Windows 安全中心 → 病毒和威胁防护 → 管理设置 → 排除项 → 添加包含 PhotoWatermark.exe 的文件夹。
+3. **向微软提交误报**：https://www.microsoft.com/en-us/wdsi/filesubmission （通常几天内清除）。
+4. 自行验证：源码公开（MIT），可按 RELEASE.md 从源码自行打包。
+
 ## Release Notes / 更新公告（v1.4.1）
 
-**EN: Fixed "update not detected".** Manifest URLs now use jsDelivr CDN (fresh immediately), old defaults auto-migrate.
+**EN: Fixed "update not detected" + reduced antivirus false positives.** Manifest URLs now use the jsDelivr CDN (fresh immediately); the exe now embeds full version metadata; README adds an antivirus false-positive guide.
 
-**中文：修复"检测不到更新"。** 清单地址改用 jsDelivr CDN（即时生效），旧默认配置自动迁移。
+**中文：修复"检测不到更新" + 降低杀软误报。** 清单地址改用 jsDelivr CDN（即时生效）；exe 嵌入完整版本信息；README 新增误报处理指南。
 
 > ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.4.1 once** — the old auto-updater cannot upgrade to this version; after installing v1.4.1, auto-update works again.
 > ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.4.1 一次** — 旧版自动更新无法升级到本版；安装 v1.4.1 后自动更新恢复正常。

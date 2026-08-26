@@ -1,6 +1,6 @@
 {
   "version": "1.4.1",
   "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.4.1/PhotoWatermark-v1.4.1.exe",
-  "note": "v1.4.1: Fix 'update not detected' (manifest CDN cache) — jsDelivr. / 修复检测不到更新（清单 CDN 缓存）——改用 jsDelivr。",
-  "checksum": "22fb3f21810608715f43ea480a06f6bb7baad80aeba7d46aa7d4543a4189bf25"
+  "note": "v1.4.1: Fix update-not-detected (jsDelivr CDN) + embed version metadata (reduce AV false positives). / 修复检测不到更新（jsDelivr）+ 嵌入版本信息（降低杀软误报）。",
+  "checksum": "19c7b7ab763cc41fd35bd3fac17c8c67a889f154a00670617c251384918b0fa7"
 }

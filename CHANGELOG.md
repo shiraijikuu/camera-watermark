@@ -14,6 +14,12 @@
 - 修复"检测不到更新"：raw.githubusercontent.com 的 CDN 缓存会导致插件商店 / 热更新清单延迟（最长可超过 5 分钟）
   - 默认清单地址改为 jsDelivr CDN（GitHub 官方认可的 CDN，推送即生效）
   - 已配置旧版 raw 默认地址的配置自动迁移到 jsDelivr；自定义地址不受影响
+- 降低杀毒软件误报：打包程序嵌入完整版本信息（公司/产品名/文件描述/版权/版本号），
+  无签名、无元数据的 PyInstaller 单文件程序最容易被 Defender 启发式误报
+- README 增加「杀毒软件误报」处理指南（解除锁定 / Defender 排除 / 向微软提交误报）
+
+### 其他
+- RELEASE.md 构建命令加入 --version-file（版本信息由版本号自动生成）
 
 ---
 
