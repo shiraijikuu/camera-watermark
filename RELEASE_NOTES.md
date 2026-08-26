@@ -1,3 +1,17 @@
+# 📢 Photo Watermark v1.4.1 — Release Notes / 更新公告
+
+**EN:** Fixed "update not detected" — `raw.githubusercontent.com` CDN caching delayed plugin-store / hot-update manifests. Default manifest URLs now use the jsDelivr CDN (fresh immediately after push); existing default configs auto-migrate.
+
+**中文：** 修复"检测不到更新"——raw.githubusercontent.com 的 CDN 缓存导致插件商店 / 热更新清单延迟。默认清单地址改用 jsDelivr CDN（推送即生效）；已有默认配置自动迁移。
+
+## What's Fixed / 修复内容
+
+- Plugin store & hot-update manifests now served via jsDelivr CDN (no stale cache) / 插件商店与热更新清单改用 jsDelivr CDN（无陈旧缓存）
+- Old default raw URLs auto-migrate; custom URLs untouched / 旧默认 raw 地址自动迁移；自定义地址不受影响
+
+See CHANGELOG.md / 详见 CHANGELOG.md。
+
+---
 # 📢 Photo Watermark v1.4.0 — Release Notes / 更新公告
 
 **EN:** New plugin extension point `api.on_ui_ready(func)` — after the main window is built, plugins receive the `App` instance and can add/change any UI (top banner, buttons on the Export tab, window title, status bar). UI changes take effect after restart; one plugin's error does not block others.

@@ -54,7 +54,7 @@ def _log(msg):
             f.write(time.strftime('%Y-%m-%d %H:%M:%S') + ' ' + str(msg) + '\n')
     except Exception:
         pass
-APP_VERSION = '1.4.0'
+APP_VERSION = '1.4.1'
 
 # ==================== 插件系统 ====================
 class PluginAPI:
@@ -223,6 +223,13 @@ def load_config():
     except Exception as e:
         if os.path.isfile(CONFIG_PATH):
             _log('配置加载失败: %s' % e)
+    # 旧版默认 raw 地址迁移到 jsDelivr：raw 的 CDN 缓存会导致更新/插件商店检测延迟
+    _RAW_U = 'https://raw.githubusercontent.com/shiraijikuu/camera-watermark/main/update.json'
+    _RAW_P = 'https://raw.githubusercontent.com/shiraijikuu/camera-watermark/main/plugins.json'
+    if cfg.get('update_url') == _RAW_U:
+        cfg['update_url'] = 'https://cdn.jsdelivr.net/gh/shiraijikuu/camera-watermark@main/update.json'
+    if cfg.get('plugin_store_url') == _RAW_P:
+        cfg['plugin_store_url'] = 'https://cdn.jsdelivr.net/gh/shiraijikuu/camera-watermark@main/plugins.json'
     return cfg
 
 

@@ -4,7 +4,7 @@
 
 **中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
-- **Version / 版本：** v1.4.0
+- **Version / 版本：** v1.4.1
 - **Author / 作者：** Shiraijikuu (GitHub)
 - **AI assistance / AI 协助：** OpenAI Codex
 - **License / 许可证：** MIT (LICENSE)
@@ -125,17 +125,14 @@ Strict semantic versioning x.y.z / 严格按照语义化版本 x.y.z 管理：
 
 See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.md；发布包按版本放在 releases/vX.Y.Z/ 目录。
 
-## Release Notes / 更新公告（v1.4.0）
+## Release Notes / 更新公告（v1.4.1）
 
-**EN: New plugin extension point.** `api.on_ui_ready(func)` hands plugins the App instance after the main UI is built, so plugins can add banners, buttons, change the title, etc. (needs a restart).
+**EN: Fixed "update not detected".** Manifest URLs now use jsDelivr CDN (fresh immediately), old defaults auto-migrate.
 
-**中文：插件新扩展点。** `api.on_ui_ready(func)` 在主界面构建完成后把 App 实例交给插件，插件可加横幅、按钮、改标题等（需重启生效）。
+**中文：修复"检测不到更新"。** 清单地址改用 jsDelivr CDN（即时生效），旧默认配置自动迁移。
 
-- Plugin UI-ready hook / 插件 UI 就绪回调
-- Per-plugin error isolation / 单插件异常隔离
-
-> ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.4.0 once** — the old auto-updater cannot upgrade to this version; after installing v1.4.0, auto-update works again.
-> ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.4.0 一次** — 旧版自动更新无法升级到本版；安装 v1.4.0 后自动更新恢复正常。
+> ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.4.1 once** — the old auto-updater cannot upgrade to this version; after installing v1.4.1, auto-update works again.
+> ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.4.1 一次** — 旧版自动更新无法升级到本版；安装 v1.4.1 后自动更新恢复正常。
 
 详见 / See CHANGELOG.md。
 

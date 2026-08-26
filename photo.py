@@ -710,8 +710,8 @@ def save_watermarked(src_path, target_path, img, fmt, quality, meta=None, preser
 DEFAULT_SETTINGS = {
     'template': '{make}  {model}   {focal}  {shutter}  {aperture}  {iso}',
     'custom_template': '',
-    'update_url': 'https://raw.githubusercontent.com/shiraijikuu/camera-watermark/main/update.json',
-    'plugin_store_url': 'https://raw.githubusercontent.com/shiraijikuu/camera-watermark/main/plugins.json',
+    'update_url': 'https://cdn.jsdelivr.net/gh/shiraijikuu/camera-watermark@main/update.json',
+    'plugin_store_url': 'https://cdn.jsdelivr.net/gh/shiraijikuu/camera-watermark@main/plugins.json',
     'language': 'zh',
     'style': 'default',
     'plugin_values': {},

@@ -1,6 +1,6 @@
 {
-  "version": "1.4.0",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.4.0/PhotoWatermark-v1.4.0.exe",
-  "note": "v1.4.0: New plugin extension point api.on_ui_ready(func) — plugins can customize the main UI. / 插件新扩展点 api.on_ui_ready(func)，插件可定制主界面。",
-  "checksum": "ab8273f94a993ce31f11ec467ad1cf49e6419178f54d3f77b5bf9efcd29f90de"
+  "version": "1.4.1",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.4.1/PhotoWatermark-v1.4.1.exe",
+  "note": "v1.4.1: Fix 'update not detected' (manifest CDN cache) — jsDelivr. / 修复检测不到更新（清单 CDN 缓存）——改用 jsDelivr。",
+  "checksum": "22fb3f21810608715f43ea480a06f6bb7baad80aeba7d46aa7d4543a4189bf25"
 }
