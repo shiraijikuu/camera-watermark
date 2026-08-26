@@ -31,6 +31,29 @@ FONTS_DIR = os.path.join(APP_DIR, 'fonts')
 INSTALLED_META_PATH = os.path.join(PLUGINS_DIR, '.installed.json')  # 插件安装记录（版本/校验和/更新时间）
 MAX_EXTRACT_TOTAL = 300 * 1024 * 1024   # 单次解压总量上限 300MB（zip 炸弹防护）
 MAX_EXTRACT_FILES = 2000                # 单次解压文件数量上限
+
+# 窗口尺寸
+WINDOW_MANAGER_SIZE = '640x360'
+WINDOW_SETTINGS_SIZE = '560x460'
+WINDOW_STORE_SIZE = '680x460'
+WINDOW_MAIN_SIZE = '1380x860'
+WINDOW_MAIN_MIN = (1100, 700)
+
+# 网络超时（秒）
+TIMEOUT_STORE_LOAD = 25
+TIMEOUT_PLUGIN_DOWNLOAD = 180
+TIMEOUT_UPDATE_CHECK = 20
+TIMEOUT_UPDATE_DOWNLOAD = 180
+
+
+def _log(msg):
+    """写日志：输出到控制台并追加到 APP_DIR/pwm.log（自身异常静默）。"""
+    try:
+        print('[pwm]', msg)
+        with open(os.path.join(APP_DIR, 'pwm.log'), 'a', encoding='utf-8') as f:
+            f.write(time.strftime('%Y-%m-%d %H:%M:%S') + ' ' + str(msg) + '\n')
+    except Exception:
+        pass
 APP_VERSION = '1.3.3'
 
 # ==================== 插件系统 ====================
@@ -188,8 +211,9 @@ def load_config():
                     except Exception:
                         continue
                 cfg[k] = v
-    except Exception:
-        pass
+    except Exception as e:
+        if os.path.isfile(CONFIG_PATH):
+            _log('配置加载失败: %s' % e)
     return cfg
 
 
@@ -197,8 +221,8 @@ def save_config(cfg):
     try:
         with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
+    except Exception as e:
+        _log('配置保存失败: %s' % e)
 
 
 def camera_name_for(meta):
@@ -241,11 +265,14 @@ def _version_newer(a, b):
 
 def _read_installed_meta():
     """读取插件安装记录 plugins/.installed.json（不存在则返回 {}）。"""
+    if not os.path.isfile(INSTALLED_META_PATH):
+        return {}   # 首次运行/尚无记录：正常，不视为错误
     try:
         with open(INSTALLED_META_PATH, 'r', encoding='utf-8') as f:
             d = json.load(f)
         return d if isinstance(d, dict) else {}
-    except Exception:
+    except Exception as e:
+        _log('插件安装记录读取失败: %s' % e)
         return {}
 
 
@@ -254,8 +281,16 @@ def _write_installed_meta(meta):
     try:
         with open(INSTALLED_META_PATH, 'w', encoding='utf-8') as f:
             json.dump(meta, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
+    except Exception as e:
+        _log('插件安装记录写入失败: %s' % e)
+
+
+def _find_plugin_py(tmp):
+    """在解压目录中递归查找 plugin.py，返回其完整路径；找不到返回 None。"""
+    for root, dirs, files in os.walk(tmp):
+        if 'plugin.py' in files:
+            return os.path.join(root, 'plugin.py')
+    return None
 
 
 def _safe_extract_zip(zip_path, dest):
@@ -347,7 +382,7 @@ class PluginManagerWindow:
         self.parent = parent
         self.win = tk.Toplevel(parent.root)
         self.win.title(tr('插件管理'))
-        self.win.geometry('640x360')
+        self.win.geometry(WINDOW_MANAGER_SIZE)
         self.win.transient(parent.root)
         self.win.grab_set()
         self._build()
@@ -382,8 +417,7 @@ class PluginManagerWindow:
         ttk.Button(bottom, text=tr('关闭'), command=self.win.destroy).pack(side='right')
 
     def refresh(self):
-        _api, names, errors = reload_plugins()
-        self.parent._refresh_format_choices()
+        _api, names, errors = self.parent.refresh_plugin_ui()
         self.tree.delete(*self.tree.get_children())
         for name in names:
             self.tree.insert('', 'end', values=(name, PLUGIN_VERSIONS.get(name, ''), tr('已加载'), ''))
@@ -413,11 +447,7 @@ class PluginManagerWindow:
                         shutil.rmtree(tmp)
                     os.makedirs(tmp, exist_ok=True)
                     _safe_extract_zip(path, tmp)
-                    plugin_py = None
-                    for root, dirs, files in os.walk(tmp):
-                        if 'plugin.py' in files:
-                            plugin_py = os.path.join(root, 'plugin.py')
-                            break
+                    plugin_py = _find_plugin_py(tmp)
                     if not plugin_py:
                         shutil.rmtree(tmp, ignore_errors=True)
                         messagebox.showerror(tr('添加失败'), tr('压缩包里找不到 plugin.py'))
@@ -447,7 +477,7 @@ class PluginSettingsWindow:
         self.parent = parent
         self.win = tk.Toplevel(parent.root)
         self.win.title(tr('插件设置'))
-        self.win.geometry('560x460')
+        self.win.geometry(WINDOW_SETTINGS_SIZE)
         self.win.transient(parent.root)
         self.win.grab_set()
         self.widgets = {}
@@ -639,7 +669,7 @@ class PluginStoreWindow:
         self.parent = parent
         self.win = tk.Toplevel(parent.root)
         self.win.title(tr('插件商店'))
-        self.win.geometry('680x460')
+        self.win.geometry(WINDOW_STORE_SIZE)
         self.win.transient(parent.root)
         self.win.grab_set()
         self.plugins = []
@@ -670,7 +700,7 @@ class PluginStoreWindow:
 
     def _load_worker(self, url):
         try:
-            with urllib.request.urlopen(url, timeout=25) as r:
+            with urllib.request.urlopen(url, timeout=TIMEOUT_STORE_LOAD) as r:
                 data = json.loads(r.read().decode('utf-8'))
             self.plugins = data.get('plugins', []) if isinstance(data, dict) else []
             self.parent.root.after(0, self._render)
@@ -755,7 +785,7 @@ class PluginStoreWindow:
                 raise ValueError('no install_url')
             if url.startswith('http://'):
                 raise ValueError(tr('仅支持 HTTPS 下载地址（install_url 必须使用 https://）'))
-            with urllib.request.urlopen(url, timeout=180) as r:
+            with urllib.request.urlopen(url, timeout=TIMEOUT_PLUGIN_DOWNLOAD) as r:
                 data = r.read()
             # 1) 下载校验：与清单 checksum 比对，不一致拒绝安装
             try:
@@ -773,11 +803,7 @@ class PluginStoreWindow:
                 f.write(data)
             # 2) 解压暂存（含 Zip Slip + 大小/数量防护）
             _safe_extract_zip(zip_path, tmp)
-            plugin_py = None
-            for root, dirs, files in os.walk(tmp):
-                if 'plugin.py' in files:
-                    plugin_py = os.path.join(root, 'plugin.py')
-                    break
+            plugin_py = _find_plugin_py(tmp)
             if not plugin_py:
                 raise ValueError(tr('压缩包里没有 plugin.py'))
             folder = os.path.dirname(plugin_py)
@@ -799,8 +825,8 @@ class PluginStoreWindow:
                 if os.path.isdir(bak) and not os.path.isdir(target):
                     try:
                         os.rename(bak, target)
-                    except Exception:
-                        pass
+                    except Exception as e2:
+                        _log('恢复旧插件目录失败: %s' % e2)
                 raise
             # 记录安装信息（版本 / zip 校验和 / 更新时间），用于商店“更新检测”
             meta = _read_installed_meta()
@@ -821,9 +847,7 @@ class PluginStoreWindow:
             self.parent.root.after(0, lambda e=e: self._install_failed(str(e)))
 
     def _install_done(self):
-        reload_plugins()
-        self.parent._refresh_style_choices()
-        self.parent._refresh_format_choices()
+        self.parent.refresh_plugin_ui()
         self.status.set(tr('安装完成，已刷新插件列表'))
         self._installing = False
         self._installing_pid = ''
@@ -857,8 +881,8 @@ class App:
         self.fonts = photo.available_fonts(FONTS_DIR)
 
         root.title('Photo Watermark v' + APP_VERSION)
-        root.geometry('1380x860')
-        root.minsize(1100, 700)
+        root.geometry(WINDOW_MAIN_SIZE)
+        root.minsize(*WINDOW_MAIN_MIN)
         self._build_ui()
         self._bind_settings()
         self._loading = True          # 初始化控件值时不触发保存/重绘
@@ -1398,6 +1422,13 @@ class App:
         labels = dict((tr(v), k) for k, v in FORMAT_CHOICES)
         self.format_var.set(labels.get(cur, labels.get('jpg', tr('JPG（可保留EXIF）'))))
 
+    def refresh_plugin_ui(self):
+        """插件刷新三连：重载插件 + 刷新样式/格式下拉。返回 (api, names, errors)。"""
+        api, names, errors = reload_plugins()
+        self._refresh_style_choices()
+        self._refresh_format_choices()
+        return api, names, errors
+
     # ---------- 语言切换 ----------
     def _on_language_change(self, _evt=None):
         disp = self.lang_var.get()
@@ -1418,8 +1449,8 @@ class App:
                 subprocess.Popen([sys.executable])
             else:
                 subprocess.Popen([sys.executable, os.path.abspath(__file__)])
-        except Exception:
-            pass
+        except Exception as e:
+            _log('重启程序失败: %s' % e)
         self.root.destroy()
 
     # ---------- 热更新 ----------
@@ -1438,7 +1469,7 @@ class App:
 
     def _check_update_worker(self, url):
         try:
-            with urllib.request.urlopen(url, timeout=20) as r:
+            with urllib.request.urlopen(url, timeout=TIMEOUT_UPDATE_CHECK) as r:
                 data = json.loads(r.read().decode('utf-8'))
             latest = str(data.get('version', ''))
             dl_url = data.get('url', '')
@@ -1453,7 +1484,7 @@ class App:
             upd_dir = os.path.join(APP_DIR, 'updates')
             os.makedirs(upd_dir, exist_ok=True)
             target = os.path.join(upd_dir, 'new_version.exe')
-            with urllib.request.urlopen(dl_url, timeout=180) as r, open(target, 'wb') as f:
+            with urllib.request.urlopen(dl_url, timeout=TIMEOUT_UPDATE_DOWNLOAD) as r, open(target, 'wb') as f:
                 shutil.copyfileobj(r, f)
             # 下载后校验：清单若带 checksum，则验证下载文件是否一致，避免坏文件覆盖 exe
             if expected_checksum:
