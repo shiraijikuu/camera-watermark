@@ -12,3 +12,4 @@ then restart the app. See PLUGINS.md for the plugin API.
 | Plugin / 插件 | Repository / 仓库 | Description / 说明 |
 |---------------|-------------------|--------------------|
 | image-watermark | [PhotoWatermark-image-watermark](https://github.com/shiraijikuu/PhotoWatermark-image-watermark) | Custom image watermark (PNG/JPG/GIF), size/position/rotation/opacity, skips RAW / 自定义图片水印 |
+| theme-switcher | [PhotoWatermark-theme-switcher](https://github.com/shiraijikuu/PhotoWatermark-theme-switcher) | Theme switching: dark / light / follow system / 主题切换：黑夜 / 白天 / 跟随系统 |
