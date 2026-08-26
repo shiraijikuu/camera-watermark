@@ -54,7 +54,7 @@ def _log(msg):
             f.write(time.strftime('%Y-%m-%d %H:%M:%S') + ' ' + str(msg) + '\n')
     except Exception:
         pass
-APP_VERSION = '1.3.3'
+APP_VERSION = '1.4.0'
 
 # ==================== 插件系统 ====================
 class PluginAPI:
@@ -66,6 +66,7 @@ class PluginAPI:
         self.styles = {}          # name -> (label, renderer)（自定义水印样式）
         self.export_hooks = []    # [func(img, meta, settings) -> img|None]（导出前处理）
         self.setting_specs = []   # [(plugin_name, key, spec)]（插件设置项）
+        self.ui_ready_hooks = []  # [func(app)] 主界面构建完成后回调，插件可向界面添加任意控件
         self.plugin_name = ''     # 当前加载的插件名
 
     def add_setting(self, key, label, kind='text', default='', options=None, min=0, max=100, step=1):
@@ -99,6 +100,14 @@ class PluginAPI:
         """导出钩子：水印绘制后、保存前调用 func(img, meta, settings)，可返回修改后的图像。"""
         if callable(func):
             self.export_hooks.append(func)
+
+    def on_ui_ready(self, func):
+        """注册 UI 就绪回调：主程序主界面构建完成后调用 func(app)。
+        app 是主窗口（App 实例），插件可自由向界面添加/修改任何控件。
+        注意：UI 改动需重启软件生效；回调内请用 try/except 防护，避免主程序结构
+        变化导致插件崩溃。"""
+        if callable(func):
+            self.ui_ready_hooks.append(func)
 
 
 def load_plugins():
@@ -890,6 +899,7 @@ class App:
         self._loading = False
         self._on_change()
         self.root.after(100, self._poll_queue)
+        self._notify_ui_ready()
 
     # ---------- UI 构建 ----------
     def _build_ui(self):
@@ -1428,6 +1438,15 @@ class App:
         self._refresh_style_choices()
         self._refresh_format_choices()
         return api, names, errors
+
+    def _notify_ui_ready(self):
+        """主界面构建完成后，把 App 实例交给注册了 on_ui_ready 的插件。
+        只在启动时调用一次；插件 UI 改动需重启生效。单个插件异常不阻断其余插件。"""
+        for hook in list(PLUGIN_API.ui_ready_hooks):
+            try:
+                hook(self)
+            except Exception as e:
+                _log('插件 UI 初始化失败: %s' % e)
 
     # ---------- 语言切换 ----------
     def _on_language_change(self, _evt=None):

@@ -149,6 +149,30 @@ def register(api):
 
 > 插件内可通过 `values['raw']` 判断当前照片是否为 RAW（可据此跳过，避免处理过慢）。
 
+### 9. 主界面就绪回调 `api.on_ui_ready(func)`（需主程序 ≥ 1.4.0）
+
+主程序主界面构建完成后，把 `App` 实例交给回调 `func(app)`，插件可以**向主界面添加/修改任意控件**
+（顶部横幅、导出页按钮、改窗口标题、操作状态栏等）。
+
+- 只在启动时调用一次，**UI 改动需重启软件生效**
+- 回调内请用 `try/except` 防护：主程序以后改结构时，插件降级而不是崩溃
+- 单个插件异常不会阻断其他插件
+
+```python
+def register(api):
+    def init_ui(app):
+        import tkinter as tk
+        from tkinter import ttk
+        try:
+            banner = tk.Label(app.root, text='★ UI 插件已生效 ★', bg='#1e293b', fg='#facc15', pady=4)
+            banner.pack(side='top', fill='x')
+        except Exception as e:
+            print('[my-plugin] banner:', e)
+    api.on_ui_ready(init_ui)
+```
+
+> 完整示例见 `plugin-repos/ui-booster/`（可打包成独立插件仓库发布）。
+
 ## 全部 API 一览
 
 | 方法 | 作用 |
@@ -159,7 +183,8 @@ def register(api):
 | add_template_preset(name, template) | 新增模板预设 |
 | add_watermark_style(name, label, renderer) | 新增自定义水印样式 |
 | on_export(func) | 导出前处理钩子 |
-| add_setting(key, label, kind, default, options) | 新增插件设置项（插件设置窗口） |
+| on_ui_ready(func) | 主界面构建完成后回调（可向界面加控件，需重启生效） |
+| on_ui_ready(func) | 主界面构建完成后回调（可向界面加控件，需重启生效） |
 | add_setting(key, label, kind, default, options) | 新增插件设置项（插件设置窗口） |
 
 ## 全部 API 一览
@@ -172,6 +197,7 @@ def register(api):
 | add_template_preset(name, template) | 新增模板预设 |
 | add_watermark_style(name, label, renderer) | 新增自定义水印样式 |
 | on_export(func) | 导出前处理钩子 |
+| on_ui_ready(func) | 主界面构建完成后回调（可向界面加控件，需重启生效） |
 
 ## 调试
 

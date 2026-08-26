@@ -1,6 +1,6 @@
 {
-  "version": "1.3.3",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.3.3/PhotoWatermark-v1.3.3.exe",
-  "note": "v1.3.3: Plugin store robustness & security fixes (checksum verify, load-failed self-heal, atomic install, zip-bomb guard). / 插件商店健壮性与安全修复（校验、加载失败自愈、原子安装、zip 炸弹防护）。",
-  "checksum": "26d264a323897fef25c28c80ff6b7a6da45af11f372aeac6deeaf084a5e18a63"
+  "version": "1.4.0",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.4.0/PhotoWatermark-v1.4.0.exe",
+  "note": "v1.4.0: New plugin extension point api.on_ui_ready(func) — plugins can customize the main UI. / 插件新扩展点 api.on_ui_ready(func)，插件可定制主界面。",
+  "checksum": "ab8273f94a993ce31f11ec467ad1cf49e6419178f54d3f77b5bf9efcd29f90de"
 }
