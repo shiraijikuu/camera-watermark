@@ -932,12 +932,31 @@ class App:
         ttk.Label(bar, textvariable=self.count_var).pack(side='left')
         ttk.Button(bar, text=tr('全选'), command=lambda: self.set_all_checked(True)).pack(side='right', padx=2)
         ttk.Button(bar, text=tr('全不选'), command=lambda: self.set_all_checked(False)).pack(side='right', padx=2)
+        # 搜索 / 排序 / 筛选 工具行
+        fbar = ttk.Frame(left)
+        fbar.pack(fill='x', pady=(4, 2))
+        ttk.Label(fbar, text=tr('搜索')).pack(side='left')
+        self.search_var = tk.StringVar()
+        self.search_var.trace_add('write', lambda *a: self._rebuild_list())
+        ttk.Entry(fbar, textvariable=self.search_var, width=12).pack(side='left', fill='x', expand=True, padx=4)
+        self.sort_var = tk.StringVar(value=tr('文件名'))
+        self.sort_var.trace_add('write', lambda *a: self._rebuild_list())
+        ttk.Combobox(fbar, textvariable=self.sort_var, values=[tr('文件名'), tr('拍摄时间'), tr('相机')],
+                     state='readonly', width=9).pack(side='left', padx=2)
+        self.filter_var = tk.StringVar(value=tr('全部'))
+        self.filter_var.trace_add('write', lambda *a: self._rebuild_list())
+        ttk.Combobox(fbar, textvariable=self.filter_var, values=[tr('全部'), 'RAW', 'JPG'],
+                     state='readonly', width=6).pack(side='left', padx=2)
 
+        self._thumbs = {}
+        self._thumb_placeholder = None
         cols = ('check', 'name', 'camera', 'shutter', 'aperture', 'iso', 'size')
-        self.tree = ttk.Treeview(left, columns=cols, show='headings', selectmode='browse')
+        self.tree = ttk.Treeview(left, columns=cols, show='tree headings', selectmode='browse')
         heads = {'check': '✓', 'name': '文件名', 'camera': '相机', 'shutter': '快门',
                  'aperture': '光圈', 'iso': 'ISO', 'size': '尺寸'}
         widths = {'check': 34, 'name': 150, 'camera': 130, 'shutter': 70, 'aperture': 60, 'iso': 70, 'size': 90}
+        self.tree.heading('#0', text=tr('缩略图'))
+        self.tree.column('#0', width=32, minwidth=32, stretch=False)
         for c in cols:
             self.tree.heading(c, text=tr(heads[c]))
             self.tree.column(c, width=widths[c], anchor='w', stretch=(c in ('name', 'camera')))
@@ -1618,18 +1637,15 @@ class App:
         idx = len(self.photos)
         self.photos.append({'path': path, 'name': os.path.basename(path),
                             'raw': meta.get('raw', False), 'checked': True, 'meta': meta})
-        check = '☑'
-        size = '%dx%d' % (meta.get('width', 0), meta.get('height', 0)) if meta.get('width') else ''
-        name = ('[RAW] ' if meta.get('raw') else '') + os.path.basename(path)
-        self.tree.insert('', 'end', iid=str(idx), values=(
-            check, name, meta.get('camera_text', ''), meta.get('shutter_text', ''),
-            meta.get('aperture_text', ''), meta.get('iso_text', ''), size))
+        self._insert_row(idx)
 
     def _on_scan_done(self, total):
         self.busy = False
         self.btn_export.config(state='normal')
         self.count_var.set('%d 张' % len(self.photos))
         self.status_var.set('扫描完成，共 %d 张照片' % total)
+        self._start_thumbnails()
+        self._rebuild_list()
         if self.photos:
             self.tree.selection_set('0')
             self._on_select()
@@ -1657,6 +1673,87 @@ class App:
         for i, ph in enumerate(self.photos):
             ph['checked'] = val
             self.tree.set(str(i), 'check', '☑' if val else '☐')
+
+    # ---------- 列表：搜索 / 排序 / 筛选 / 缩略图 ----------
+    def _matches_filters(self, idx, search_text, filter_type):
+        """照片 idx 是否通过 搜索+类型筛选（纯逻辑，便于测试）。"""
+        ph = self.photos[idx]
+        q = (search_text or '').strip().lower()
+        if q and q not in ph['name'].lower():
+            return False
+        if filter_type == 'RAW' and not ph['raw']:
+            return False
+        if filter_type == 'JPG' and ph['raw']:
+            return False
+        return True
+
+    def _sorted_indexes(self, indexes, sort_key):
+        """按 sort_key（文件名/拍摄时间/相机）排序（纯逻辑）。"""
+        if sort_key == '拍摄时间':
+            return sorted(indexes, key=lambda i: (self.photos[i]['meta'].get('date_text', ''),
+                                                  self.photos[i]['meta'].get('time_text', '')))
+        if sort_key == '相机':
+            return sorted(indexes, key=lambda i: self.photos[i]['meta'].get('camera_text', ''))
+        return sorted(indexes, key=lambda i: self.photos[i]['name'].lower())
+
+    def _rebuild_list(self):
+        shown = [i for i in range(len(self.photos))
+                 if self._matches_filters(i, self.search_var.get(), self.filter_var.get())]
+        shown = self._sorted_indexes(shown, self.sort_var.get())
+        self.tree.delete(*self.tree.get_children())
+        for idx in shown:
+            self._insert_row(idx)
+        self.count_var.set('%d / %d 张' % (len(shown), len(self.photos)))
+        if self.current_index is not None and self.tree.exists(str(self.current_index)):
+            self.tree.selection_set(str(self.current_index))
+
+    def _insert_row(self, idx):
+        ph = self.photos[idx]
+        check = '☑' if ph['checked'] else '☐'
+        size = '%dx%d' % (ph['meta'].get('width', 0), ph['meta'].get('height', 0)) if ph['meta'].get('width') else ''
+        name = ('[RAW] ' if ph['raw'] else '') + ph['name']
+        self.tree.insert('', 'end', iid=str(idx), image=self._thumbs.get(idx) or self._get_thumb_placeholder(),
+                         values=(check, name, ph['meta'].get('camera_text', ''),
+                                 ph['meta'].get('shutter_text', ''), ph['meta'].get('aperture_text', ''),
+                                 ph['meta'].get('iso_text', ''), size))
+
+    def _get_thumb_placeholder(self):
+        if self._thumb_placeholder is None:
+            try:
+                im = Image.new('RGB', (24, 20), (150, 150, 150))
+                self._thumb_placeholder = ImageTk.PhotoImage(im)
+            except Exception:
+                self._thumb_placeholder = None
+        return self._thumb_placeholder
+
+    def _start_thumbnails(self):
+        self._thumbs = {}
+        if not self.photos:
+            return
+        snapshot = [(i, ph['path'], (ph.get('meta') or {}).get('orientation')) for i, ph in enumerate(self.photos)]
+        threading.Thread(target=self._thumb_worker, args=(snapshot,), daemon=True).start()
+
+    def _thumb_worker(self, snapshot):
+        for n, (idx, path, orient) in enumerate(snapshot):
+            try:
+                img = self._open_oriented(path, orient)
+                img.thumbnail((24, 20), Image.LANCZOS)
+                self.msg_q.put(('thumb', idx, img.copy()))
+            except Exception:
+                self.msg_q.put(('thumb', idx, None))
+            if n % 8 == 0:
+                self.msg_q.put(('thumb_batch', None))
+
+    def _on_thumb(self, idx, pil_img):
+        if pil_img is None:
+            self._thumbs[idx] = None
+        else:
+            try:
+                self._thumbs[idx] = ImageTk.PhotoImage(pil_img)
+            except Exception:
+                self._thumbs[idx] = None
+        if self.tree.exists(str(idx)):
+            self.tree.item(str(idx), image=self._thumbs.get(idx) or self._get_thumb_placeholder())
 
 
     # ---------- 预览 ----------
@@ -1809,6 +1906,10 @@ class App:
                     self.count_var.set('%d/%d 张' % (data[0], data[1]))
                 elif kind == 'scan_done':
                     self._on_scan_done(data)
+                elif kind == 'thumb':
+                    self._on_thumb(*data)
+                elif kind == 'thumb_batch':
+                    pass  # 缩略图分批生成时让出 UI，保持列表响应
                 elif kind == 'export_progress':
                     i, n, name = data
                     self.progress.config(value=0 if n == 0 else i * 100 / n)
