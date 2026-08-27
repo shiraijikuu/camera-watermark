@@ -516,11 +516,27 @@ def available_fonts(fonts_dir=None):
     fonts.extend(_scan_custom_fonts(fonts_dir))
     return fonts
 
-def resolve_font(family, fonts_dir=None):
+def _font_candidates(family, fonts_dir=None):
+    """按优先级产出字体候选路径（只产出已存在的），支持跨平台回退。"""
+    seen = set()
     for name, p in available_fonts(fonts_dir):
-        if name == family:
-            return p
-    return r'C:\Windows\Fonts\msyh.ttc'
+        if name == family and p not in seen:
+            seen.add(p)
+            yield p
+    for p in (r'C:\Windows\Fonts\msyh.ttc',
+              r'C:\Windows\Fonts\arial.ttf',
+              '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+              '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+              '/System/Library/Fonts/Helvetica.ttc'):
+        if p not in seen and os.path.exists(p):
+            seen.add(p)
+            yield p
+
+
+def resolve_font(family, fonts_dir=None):
+    for p in _font_candidates(family, fonts_dir):
+        return p
+    return None
 
 # ---------------- 水印渲染 ----------------
 def _hex_to_rgb(h, default=(255, 255, 255)):
@@ -542,12 +558,19 @@ def render_watermark(img, settings, values, fonts_dir=None):
     lines = text.split('\n')
 
     fs = max(8, int(W * settings.get('font_size_pct', 2.2) / 100))
-    font_path = resolve_font(settings.get('font_family', '微软雅黑'), fonts_dir)
-    try:
-        font = ImageFont.truetype(font_path, fs)
-    except Exception:
-        # 字体文件损坏/不支持时回退到微软雅黑，避免渲染失败
-        font = ImageFont.truetype(r'C:\Windows\Fonts\msyh.ttc', fs)
+    font = None
+    for p in _font_candidates(settings.get('font_family', '微软雅黑'), fonts_dir):
+        try:
+            font = ImageFont.truetype(p, fs)
+            break
+        except Exception:
+            continue
+    if font is None:
+        # 找不到任何可用字体时用 PIL 内置位图字体兜底，避免渲染失败
+        try:
+            font = ImageFont.load_default()
+        except Exception:
+            return img
     ascent, descent = font.getmetrics()
     line_h = int((ascent + descent) * (1 + settings.get('line_spacing', 0.35)))
 
