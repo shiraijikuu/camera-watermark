@@ -745,6 +745,9 @@ class PluginSettingsWindow:
                     ttk.Scale(row, from_=float(spec.get('min', 0)), to=float(spec.get('max', 100)),
                               variable=var,
                               command=lambda v, pn=pname, k=key, vv=var: self._live(pn, k, vv)).pack(side='left', fill='x', expand=True, padx=6)
+                    _add_scale_entry(row, var, float(spec.get('min', 0)), float(spec.get('max', 100)),
+                                     lambda v, pn=pname, k=key, vv=var: self._live(pn, k, vv),
+                                     fmt='%.1f', width=6).pack(side='left', padx=(0, 4))
                     vlab = ttk.Label(row, text='%.1f' % cur_f, width=6)
                     vlab.pack(side='left')
                     var.trace_add('write', lambda *a, l=vlab, v=var: l.config(text='%.1f' % float(v.get())))
@@ -1025,6 +1028,42 @@ class PluginStoreWindow:
 
 
 # ==================== 主界面 ====================
+def _add_scale_entry(parent, var, lo, hi, cmd, fmt='%.2f', width=6):
+    """滑块 + 手动输入框：滑块保留，输入框可精确输入。
+    cmd(value) 在滑块拖动或输入提交时调用。防循环：var 变化(trace)更新输入框文本；
+    用户输入(Return/FocusOut)反写 var 并钳制到 [lo, hi]。"""
+    ent = ttk.Entry(parent, width=width, justify='center')
+
+    def _sync(*_a):                      # var -> entry（滑块/代码改动时回显）
+        try:
+            txt = fmt % float(var.get())
+        except Exception:
+            txt = ''
+        if ent.get() != txt:
+            ent.delete(0, 'end')
+            ent.insert(0, txt)
+
+    var.trace_add('write', _sync)
+
+    def _commit(_e=None):                # entry -> var（用户输入提交）
+        try:
+            v = float(ent.get())
+        except (TypeError, ValueError):
+            v = float(var.get())
+        v = max(float(lo), min(float(hi), v))   # 范围钳制
+        if abs(float(var.get()) - v) > 1e-9:
+            var.set(v)                    # 触发 _sync 归一化回显
+        try:
+            cmd(v)
+        except Exception:
+            pass
+
+    ent.bind('<Return>', _commit)
+    ent.bind('<FocusOut>', _commit)
+    _sync()   # 初始化回显 var 当前值
+    return ent
+
+
 class App:
     def __init__(self, root):
         self.root = root
@@ -1236,6 +1275,7 @@ class App:
         ttk.Label(row, text=tr('字号(%宽)')).pack(side='left')
         self.size_var = tk.DoubleVar()
         ttk.Scale(row, from_=0.5, to=8, variable=self.size_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.size_var, 0.5, 8, lambda v: self._on_change(), fmt='%.1f').pack(side='left', padx=(0, 4))
         self.size_label = ttk.Label(row, text='', width=5)
         self.size_label.pack(side='left')
 
@@ -1243,6 +1283,7 @@ class App:
         ttk.Label(row, text=tr('行距')).pack(side='left')
         self.spacing_var = tk.DoubleVar()
         ttk.Scale(row, from_=0, to=1, variable=self.spacing_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.spacing_var, 0, 1, lambda v: self._on_change(), fmt='%.2f').pack(side='left', padx=(0, 4))
         self.spacing_label = ttk.Label(row, text='', width=5)
         self.spacing_label.pack(side='left')
 
@@ -1255,6 +1296,7 @@ class App:
         ttk.Label(row, text=tr('透明度')).pack(side='left', padx=(12, 4))
         self.text_opacity_var = tk.DoubleVar()
         ttk.Scale(row, from_=0, to=1, variable=self.text_opacity_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.text_opacity_var, 0, 1, lambda v: self._on_change(), fmt='%.2f').pack(side='left', padx=(0, 4))
         self.opacity_label = ttk.Label(row, text='', width=5)
         self.opacity_label.pack(side='left')
 
@@ -1274,19 +1316,22 @@ class App:
         row = ttk.Frame(f); row.pack(fill='x')
         ttk.Label(row, text=tr('横向偏移%')).pack(side='left')
         self.ox_var = tk.DoubleVar()
-        ttk.Scale(row, from_=-20, to=20, variable=self.ox_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        ttk.Scale(row, from_=-50, to=50, variable=self.ox_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.ox_var, -50, 50, lambda v: self._on_change(), fmt='%+.1f').pack(side='left', padx=(0, 4))
         self.ox_label = ttk.Label(row, text='', width=6)
         self.ox_label.pack(side='left')
         row = ttk.Frame(f); row.pack(fill='x')
         ttk.Label(row, text=tr('纵向偏移%')).pack(side='left')
         self.oy_var = tk.DoubleVar()
-        ttk.Scale(row, from_=-20, to=20, variable=self.oy_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        ttk.Scale(row, from_=-50, to=50, variable=self.oy_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.oy_var, -50, 50, lambda v: self._on_change(), fmt='%+.1f').pack(side='left', padx=(0, 4))
         self.oy_label = ttk.Label(row, text='', width=6)
         self.oy_label.pack(side='left')
         row = ttk.Frame(f); row.pack(fill='x')
         ttk.Label(row, text=tr('边距%')).pack(side='left')
         self.margin_var = tk.DoubleVar()
         ttk.Scale(row, from_=0, to=15, variable=self.margin_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.margin_var, 0, 15, lambda v: self._on_change(), fmt='%.1f').pack(side='left', padx=(0, 4))
         self.margin_label = ttk.Label(row, text='', width=6)
         self.margin_label.pack(side='left')
 
@@ -1307,12 +1352,14 @@ class App:
         ttk.Label(row, text=tr('不透明度')).pack(side='left', padx=(12, 4))
         self.bg_opacity_var = tk.DoubleVar()
         ttk.Scale(row, from_=0, to=1, variable=self.bg_opacity_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.bg_opacity_var, 0, 1, lambda v: self._on_change(), fmt='%.2f').pack(side='left', padx=(0, 4))
         self.bg_opacity_label = ttk.Label(row, text='', width=5)
         self.bg_opacity_label.pack(side='left')
         row = ttk.Frame(f); row.pack(fill='x')
         ttk.Label(row, text=tr('内边距(×字号)')).pack(side='left')
         self.bg_padding_var = tk.DoubleVar()
         ttk.Scale(row, from_=0, to=2, variable=self.bg_padding_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.bg_padding_var, 0, 2, lambda v: self._on_change(), fmt='%.2f').pack(side='left', padx=(0, 4))
         self.bg_padding_label = ttk.Label(row, text='', width=5)
         self.bg_padding_label.pack(side='left')
 
@@ -1326,6 +1373,7 @@ class App:
         ttk.Label(row, text=tr('粗细')).pack(side='left', padx=(12, 4))
         self.outline_width_var = tk.DoubleVar()
         ttk.Scale(row, from_=0.02, to=0.3, variable=self.outline_width_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.outline_width_var, 0.02, 0.3, lambda v: self._on_change(), fmt='%.3f').pack(side='left', padx=(0, 4))
         self.outline_width_label = ttk.Label(row, text='', width=5)
         self.outline_width_label.pack(side='left')
 
@@ -1335,6 +1383,7 @@ class App:
         ttk.Label(row, text=tr('阴影强度')).pack(side='left')
         self.shadow_blur_var = tk.DoubleVar()
         ttk.Scale(row, from_=0, to=0.5, variable=self.shadow_blur_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.shadow_blur_var, 0, 0.5, lambda v: self._on_change(), fmt='%.3f').pack(side='left', padx=(0, 4))
         self.shadow_blur_label = ttk.Label(row, text='', width=5)
         self.shadow_blur_label.pack(side='left')
 
@@ -1350,6 +1399,7 @@ class App:
         ttk.Label(row, text=tr('JPG质量')).pack(side='left')
         self.quality_var = tk.IntVar()
         ttk.Scale(row, from_=50, to=100, variable=self.quality_var, command=lambda v: None).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.quality_var, 50, 100, lambda v: None, fmt='%.0f').pack(side='left', padx=(0, 4))
         self.quality_label = ttk.Label(row, text='', width=5)
         self.quality_label.pack(side='left')
         self.preserve_exif_var = tk.BooleanVar()
