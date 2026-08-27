@@ -539,10 +539,11 @@ def resolve_font(family, fonts_dir=None):
     return None
 
 # ---------------- 水印渲染 ----------------
-def _watermark_layout(img, settings, values, fonts_dir=None):
+def _watermark_layout(img, settings, values, fonts_dir=None, full_size=None):
     """计算水印布局：返回 (bx, by, inner_w, inner_h, font, lines, line_h, padding, fs)。
-    与 render_watermark 共用，保证拖拽换算与最终渲染一致。无文本/字体时返回 None。"""
-    W, H = img.size
+    与 render_watermark 共用，保证拖拽换算与最终渲染一致。无文本/字体时返回 None。
+    full_size 指定时，布局以全图尺寸为基准（用于裁剪预览图中定位水印）。"""
+    W, H = full_size if full_size else img.size
     text = render_template(settings.get('template', ''), values)
     if not text:
         return None
@@ -613,30 +614,43 @@ def _hex_to_rgb(h, default=(255, 255, 255)):
         return default
 
 # -*- coding: utf-8 -*-
-def render_watermark(img, settings, values, fonts_dir=None):
-    """在 img（PIL RGB，已按方向转正）上绘制水印，返回新图。
-    只处理水印所在的小区域（裁剪 -> 绘制 -> 贴回），避免全图合成，速度与图片总像素无关。"""
+def render_watermark(img, settings, values, fonts_dir=None, full_size=None, origin=(0, 0)):
+    """在 img（PIL RGB）上绘制水印，返回新图。
+    full_size=None 时 img 即全图（现状）；full_size 指定时为"裁剪预览图"，
+    origin 是 img 左上角在全图中的坐标——水印按全图布局，只绘制与 img 有交集的区域，
+    使放大预览中水印位置与全图一致。只处理水印区域，速度与图片总像素无关。"""
     img = img.convert('RGB')
-    r = _watermark_layout(img, settings, values, fonts_dir)
+    r = _watermark_layout(img, settings, values, fonts_dir, full_size=full_size)
     if r is None:
         return img
     bx, by, inner_w, inner_h, font, lines, line_h, padding, fs = r
+    W, H = img.size
 
-    # 只处理水印区域
-    patch = img.crop((bx, by, bx + inner_w, by + inner_h)).convert('RGBA')
+    # 水印矩形在本图坐标（全图坐标 - 窗口偏移）
+    lx = bx - origin[0]
+    ly = by - origin[1]
+    cx0, cy0 = max(0, lx), max(0, ly)
+    cx1, cy1 = min(W, lx + inner_w), min(H, ly + inner_h)
+    if cx1 <= cx0 or cy1 <= cy0:
+        return img   # 水印完全在可视区外，无需绘制
+
+    # 只处理交集区域；水印矩形左上角相对交集区域的位置 (dx, dy)
+    dx = lx - cx0
+    dy = ly - cy0
+    patch = img.crop((cx0, cy0, cx1, cy1)).convert('RGBA')
     layer = Image.new('RGBA', patch.size, (0, 0, 0, 0))
     od = ImageDraw.Draw(layer)
 
     if settings.get('bg_enabled') and settings.get('bg_opacity', 0) > 0:
-        r, g, b = _hex_to_rgb(settings.get('bg_color', '#000000'), (0, 0, 0))
-        a = int(255 * float(settings.get('bg_opacity', 0.45)))
+        rr, gg, bb = _hex_to_rgb(settings.get('bg_color', '#000000'), (0, 0, 0))
+        aa = int(255 * float(settings.get('bg_opacity', 0.45)))
         radius = max(0, int(fs * 0.25))
-        od.rounded_rectangle([0, 0, inner_w, inner_h], radius=radius, fill=(r, g, b, a))
+        od.rounded_rectangle([dx, dy, dx + inner_w, dy + inner_h], radius=radius, fill=(rr, gg, bb, aa))
 
-    r, g, b = _hex_to_rgb(settings.get('text_color', '#ffffff'), (255, 255, 255))
+    rr, gg, bb = _hex_to_rgb(settings.get('text_color', '#ffffff'), (255, 255, 255))
     alpha = int(255 * float(settings.get('text_opacity', 1.0)))
-    tx = padding
-    ty = padding
+    tx = padding + dx
+    ty = padding + dy
 
     if settings.get('shadow_enabled'):
         blur = max(1, int(fs * float(settings.get('shadow_blur', 0.15))))
@@ -650,11 +664,11 @@ def render_watermark(img, settings, values, fonts_dir=None):
         stroke_fill = _hex_to_rgb(settings.get('outline_color', '#000000'), (0, 0, 0))
 
     for li, l in enumerate(lines):
-        od.text((tx, ty + li * line_h), l, font=font, fill=(r, g, b, alpha),
+        od.text((tx, ty + li * line_h), l, font=font, fill=(rr, gg, bb, alpha),
                 stroke_width=stroke_w, stroke_fill=stroke_fill)
 
     patch = Image.alpha_composite(patch, layer).convert('RGB')
-    img.paste(patch, (bx, by))
+    img.paste(patch, (cx0, cy0))
     return img
 
 # ---------------- EXIF 回写 ----------------

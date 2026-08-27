@@ -296,6 +296,17 @@ def _version_newer(a, b):
     return parse(a) > parse(b)
 
 
+PREVIEW_OVERSCAN = 1.25   # 预览渲染输出过扫描系数（画布 x 此值 = 输出上限）
+
+
+def _pick_resize_method(scale):
+    """预览底图缩放算法（性能优先）：
+    - 缩小（scale<1）：BOX，快 3-4 倍，缩到屏宽后质量足够；
+    - 放大（scale>=1）：BILINEAR，比 LANCZOS 快约 2 倍，预览叠加水印后质量可接受。
+    大图滑块/滚轮缩放由此显著提速。纯逻辑便于测试。"""
+    return Image.BILINEAR if scale >= 1.0 else Image.BOX
+
+
 def _jsdelivr_to_raw(url):
     """jsDelivr @main URL → 对应 GitHub raw URL；非 jsDelivr @main 返回 None。
 
@@ -1052,6 +1063,8 @@ class App:
         zoom_bar = ttk.Frame(right)
         zoom_bar.pack(fill='x')
         self.preview_scale = 'fit'
+        self._view_x = 0
+        self._view_y = 0
         self.compare_mode = False
         ttk.Button(zoom_bar, text=tr('适应窗口'), command=lambda: self._set_zoom('fit')).pack(side='left')
         ttk.Button(zoom_bar, text='100%', command=lambda: self._set_zoom(1.0)).pack(side='left', padx=2)
@@ -1541,12 +1554,14 @@ class App:
         self.style_combo['values'] = opts
         self.style_var.set(self._style_labels().get(self.settings.get('style', 'default'), tr('默认')))
 
-    def _render_with_style(self, img, settings, values):
-        # 1) 先绘制文字水印
-        out = photo.render_watermark(img, settings, values, fonts_dir=FONTS_DIR)
-        # 2) 再叠加插件水印样式（如图片水印），实现文字 + 图片同时存在
+    def _render_with_style(self, img, settings, values, full_size=None, origin=(0, 0), apply_style=True):
+        # 1) 先绘制文字水印（full_size/origin 供裁剪预览图按全图坐标定位）
+        out = photo.render_watermark(img, settings, values, fonts_dir=FONTS_DIR,
+                                     full_size=full_size, origin=origin)
+        # 2) 再叠加插件水印样式（如图片水印）。裁剪模式下插件样式基于局部图坐标
+        #    无法对齐全图，跳过以避免水印位置错乱（文字水印 + 命中矩形已指示位置）
         style = settings.get('style', 'default')
-        if style != 'default' and style in PLUGIN_API.styles:
+        if apply_style and style != 'default' and style in PLUGIN_API.styles:
             _label, renderer = PLUGIN_API.styles[style]
             res = renderer(out, settings, values)
             if res is not None:
@@ -2003,16 +2018,26 @@ class App:
             return min(cw / max(1, ow), ch / max(1, oh), 2.0)
         return float(self.preview_scale)
 
-    def _set_zoom(self, v, pan=None):
-        """设置缩放。pan 为 None 时回到画面中心（按钮点击）；否则使用指定平移（滚轮以鼠标为中心）。"""
+    def _set_zoom(self, v, pan=None, view=None, defer_render=False):
+        """设置缩放。pan 为 None 时回到画面中心（按钮点击）；否则使用指定平移（滚轮以鼠标为中心）。
+        view 为 (x, y) 时设置可见区域窗口左上角（原图像素，大放大钳制渲染用）；None 回到全图。
+        defer_render=True 供滑块连续拖动：走 80ms 节流合并渲染。"""
         self.preview_scale = v
         if pan is None:
             self._pan_x = 0
             self._pan_y = 0
         else:
             self._pan_x, self._pan_y = pan
+        if view is None:
+            self._view_x = 0
+            self._view_y = 0
+        else:
+            self._view_x, self._view_y = view
         self._sync_zoom_ui()
-        self._render_preview()
+        if defer_render:
+            self._schedule_preview()
+        else:
+            self._render_preview()
 
     def _sync_zoom_ui(self):
         """把当前缩放同步到滑块与百分比标签（guard 防滑块 command 回环）。"""
@@ -2043,7 +2068,7 @@ class App:
             return
         cw = max(120, self.canvas.winfo_width() - 10)
         ch = max(120, self.canvas.winfo_height() - 10)
-        self._zoom_around(cw / 2, ch / 2, new)
+        self._zoom_around(cw / 2, ch / 2, new, defer=True)   # 拖动节流：避免连续全量重渲染
 
     def _current_fit_scale(self):
         """当前 fit 对应的实际缩放比（画布尺寸 x 原图尺寸，上限 2x）。"""
@@ -2086,31 +2111,44 @@ class App:
                 new = max(0.25, float(cur) - 0.25)
         self._zoom_around(evt.x, evt.y, new)
 
-    def _zoom_around(self, cx, cy, new_scale):
-        """以画布坐标 (cx, cy) 为中心缩放：保持缩放前该点下的图像内容位置不变。"""
+    def _zoom_around(self, cx, cy, new_scale, defer=False):
+        """以画布坐标 (cx, cy) 为中心缩放：保持缩放前该点下的图像内容位置不变。
+        大放大时进入"可见区域渲染"：钳制输出尺寸 + 窗口跟随鼠标点。
+        defer=True 时合并渲染（供滑块拖动）。"""
         img = getattr(self, '_current_preview_full', None)
         disp = getattr(self, '_preview_disp', None)
         if img is None or disp is None:
-            self._set_zoom(new_scale)
+            self._set_zoom(new_scale, defer_render=defer)
             return
         _dw, _dh, scale, ox, oy = disp
         if scale <= 0:
-            self._set_zoom(new_scale)
+            self._set_zoom(new_scale, defer_render=defer)
             return
-        # 缩放前鼠标下的图像坐标（全分辨率）
-        ix = (cx - ox) / scale
-        iy = (cy - oy) / scale
+        vx = getattr(self, '_view_x', 0)
+        vy = getattr(self, '_view_y', 0)
+        # 缩放前鼠标下的图像坐标（全分辨率，含窗口偏移）
+        ix = vx + (cx - ox) / scale
+        iy = vy + (cy - oy) / scale
         # 新底图的有效缩放比
         eff = self._current_fit_scale() if new_scale == 'fit' else float(new_scale)
         cw = max(120, self.canvas.winfo_width() - 10)
         ch = max(120, self.canvas.winfo_height() - 10)
-        new_w = img.width * eff
-        new_h = img.height * eff
-        ox0 = cw / 2 - new_w / 2
-        oy0 = ch / 2 - new_h / 2
-        pan_x = cx - ox0 - ix * eff
-        pan_y = cy - oy0 - iy * eff
-        self._set_zoom(new_scale, pan=(pan_x, pan_y))
+        # 新输出尺寸（钳制到画布过扫描，避免放大渲染超大图）
+        out_w = min(img.width * eff, cw * PREVIEW_OVERSCAN)
+        out_h = min(img.height * eff, ch * PREVIEW_OVERSCAN)
+        vw = out_w / eff
+        vh = out_h / eff
+        ox0 = cw / 2 - out_w / 2
+        oy0 = ch / 2 - out_h / 2
+        pan_x = getattr(self, '_pan_x', 0)
+        pan_y = getattr(self, '_pan_y', 0)
+        # 新窗口左上角：使鼠标点 ix/iy 仍显示在画布 (cx, cy)
+        nvx = ix - (cx - ox0 - pan_x) / eff
+        nvy = iy - (cy - oy0 - pan_y) / eff
+        # 钳制窗口在原图内（未钳制时自动归 0 = 全图）
+        nvx = max(0.0, min(max(0.0, img.width - vw), nvx))
+        nvy = max(0.0, min(max(0.0, img.height - vh), nvy))
+        self._set_zoom(new_scale, pan=(pan_x, pan_y), view=(nvx, nvy), defer_render=defer)
 
     def _apply_pan(self):
         """把当前 _pan_x/_pan_y 应用到画布：只移动图片项 + 更新命中矩形，不重渲染。"""
@@ -2130,11 +2168,23 @@ class App:
         except Exception:
             self._render_preview()
             return
-        # 平移后同步水印命中矩形（图像坐标 -> 画布坐标）
+        vx = getattr(self, '_view_x', 0)
+        vy = getattr(self, '_view_y', 0)
+        # 平移后同步水印命中矩形（图像坐标 -> 画布坐标，含窗口偏移）
         rect = getattr(self, '_wm_rect_img', None)
         if rect:
-            self._wm_rect = (ox + rect[0] * scale, oy + rect[1] * scale,
-                             ox + rect[2] * scale, oy + rect[3] * scale)
+            self._wm_rect = (ox + (rect[0] - vx) * scale, oy + (rect[1] - vy) * scale,
+                             ox + (rect[2] - vx) * scale, oy + (rect[3] - vy) * scale)
+        # 平移超出渲染缓冲（渲染图已不能覆盖画布）-> 窗口跟随平移并重渲染
+        cw = max(120, self.canvas.winfo_width() - 10)
+        ch = max(120, self.canvas.winfo_height() - 10)
+        if ox > 0 or oy > 0 or ox + disp_w < cw or oy + disp_h < ch:
+            if scale > 0:
+                self._view_x += self._pan_x / scale
+                self._view_y += self._pan_y / scale
+            self._pan_x = 0
+            self._pan_y = 0
+            self._render_preview()
 
     def _set_compare(self, on):
         self.compare_mode = bool(on)
@@ -2197,8 +2247,10 @@ class App:
             _dw, _dh, scale, ox, oy = disp
             if scale <= 0:
                 return
-            ix = (evt.x - ox) / scale
-            iy = (evt.y - oy) / scale
+            vx = getattr(self, '_view_x', 0)
+            vy = getattr(self, '_view_y', 0)
+            ix = vx + (evt.x - ox) / scale
+            iy = vy + (evt.y - oy) / scale
             inner_w = rect[2] - rect[0]
             inner_h = rect[3] - rect[1]
             W, H = img.size
@@ -2251,16 +2303,38 @@ class App:
         cw = max(120, self.canvas.winfo_width() - 10)
         ch = max(120, self.canvas.winfo_height() - 10)
         scale = self._compute_preview_scale(cw, ch, img.width, img.height)
-        # 缓存"原图缩放底图"：拖拽水印/平移时只需在小图上重画水印，
-        # 避免每次都做全分辨率渲染 + 全图缩放（大图可快几十倍，拖拽才跟手）
-        base_key = (id(img), scale)
+        # 输出尺寸钳制：放大超阈值时只渲染"可见区域"到画布过扫描尺寸，
+        # 避免渲染 scale x 全图（如 6000x4000 放大 4x = 24000x16000）浪费内存/时间
+        target_w = img.width * scale
+        target_h = img.height * scale
+        max_w = cw * PREVIEW_OVERSCAN
+        max_h = ch * PREVIEW_OVERSCAN
+        clamped = target_w > max_w or target_h > max_h
+        if clamped:
+            out_w = max(1, int(max_w))
+            out_h = max(1, int(max_h))
+            vw = out_w / scale
+            vh = out_h / scale
+            vx = max(0.0, min(max(0.0, img.width - vw), self._view_x))
+            vy = max(0.0, min(max(0.0, img.height - vh), self._view_y))
+            self._view_x, self._view_y = vx, vy   # 保留浮点精度，避免连续缩放锚点漂移
+            try:
+                src_img = img.crop((int(vx), int(vy), int(vx + vw) + 1, int(vy + vh) + 1))
+            except Exception:
+                src_img = img
+        else:
+            out_w = max(1, int(target_w))
+            out_h = max(1, int(target_h))
+            vx = vy = 0
+            self._view_x = self._view_y = 0
+            src_img = img
+        # 缓存"可见区域缩放底图"：缩放/平移一致时复用，避免重复裁剪+缩放
+        base_key = (id(img), scale, vx, vy)
         if getattr(self, '_preview_base_key', None) != base_key:
             try:
-                bw = max(1, int(img.width * scale))
-                bh = max(1, int(img.height * scale))
-                self._preview_base = img.resize((bw, bh), Image.LANCZOS)
+                self._preview_base = src_img.resize((out_w, out_h), _pick_resize_method(scale))
             except Exception:
-                self._preview_base = img
+                self._preview_base = src_img
             self._preview_base_key = base_key
         base = self._preview_base
         if self.compare_mode:
@@ -2268,7 +2342,12 @@ class App:
         else:
             try:
                 meta = self.photos[self.current_index]['meta']
-                out = self._render_with_style(base, self.settings, build_values(meta, self.settings))
+                values = build_values(meta, self.settings)
+                if clamped:
+                    out = self._render_with_style(base, self.settings, values,
+                                                  full_size=img.size, origin=(vx, vy), apply_style=False)
+                else:
+                    out = self._render_with_style(base, self.settings, values)
             except Exception as e:
                 self.status_var.set('预览渲染失败: %s' % e)
                 return
@@ -2289,7 +2368,8 @@ class App:
                 r = photo.watermark_rect(img, self.settings, build_values(meta, self.settings))
                 if r:
                     wm_img = r
-                    wm_canvas = (ox + r[0] * scale, oy + r[1] * scale, ox + r[2] * scale, oy + r[3] * scale)
+                    wm_canvas = (ox + (r[0] - vx) * scale, oy + (r[1] - vy) * scale,
+                                 ox + (r[2] - vx) * scale, oy + (r[3] - vy) * scale)
             except Exception:
                 wm_img = None
                 wm_canvas = None

@@ -1,6 +1,6 @@
 {
   "version": "1.9.0",
   "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.9.0/PhotoWatermark-v1.9.0.exe",
-  "note": "v1.9.0: Dual-source fallback for update check & plugin store (jsDelivr @main + GitHub raw), bypasses stale CDN cache without config changes. / 更新检测与插件商店双源回退（jsDelivr @main + GitHub raw），绕过 CDN 缓存滞后，无需改配置。",
-  "checksum": "edf76031b015424968b91688b637538257952921ac9b18c7ef6805a38d7b4fd7"
+  "note": "v1.9.0: Preview performance (render only visible region when zoomed, capped 1.25x canvas; faster resize; slider throttle; pixel-exact watermark in zoom) + dual-source fallback for update/store. / 预览性能优化（放大只渲染可见区域、缩放提速、滑块节流、水印位置严格一致）+ 更新/商店双源回退。",
+  "checksum": "a84e562cbd9915c3c4b1ffc4b6800fcf77b382a25b39ce7418ae65639a2a97a6"
 }

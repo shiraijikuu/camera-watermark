@@ -52,6 +52,10 @@ class FakeApp:
         self.zoom_var = _Var(100.0)
         self.zoom_label = FakeLabel()
         self._zoom_slider_guard = False
+        self.preview_timer = None
+        self.scheduled = 0
+        self._view_x = 0
+        self._view_y = 0
 
     # ---- 使用 App 上定义的真实方法（纯逻辑） ----
     _offset_for_drag = app.App._offset_for_drag
@@ -63,6 +67,8 @@ class FakeApp:
 
     def _render_preview(self):
         self.rendered += 1
+    def _schedule_preview(self):
+        self.scheduled += 1
 
     def _update_labels(self):
         pass
@@ -185,6 +191,67 @@ class TestZoomSlider(unittest.TestCase):
         self.assertEqual(a.zoom_label.text, '13%')  # 标签仍显示真实百分比
 
 
+class TestZoomPerf(unittest.TestCase):
+    def test_pick_resize_method_downscale_box(self):
+        self.assertEqual(app._pick_resize_method(0.5), Image.BOX)
+        self.assertEqual(app._pick_resize_method(0.99), Image.BOX)
+
+    def test_pick_resize_method_upscale_lanczos(self):
+        self.assertEqual(app._pick_resize_method(1.0), Image.BILINEAR)
+        self.assertEqual(app._pick_resize_method(2.5), Image.BILINEAR)
+
+    def test_set_zoom_defer_schedules_not_renders(self):
+        a = FakeApp()
+        app.App._set_zoom(a, 1.5, defer_render=True)
+        self.assertEqual(a.preview_scale, 1.5)
+        self.assertEqual(a.scheduled, 1)     # 节流：只排队
+        self.assertEqual(a.rendered, 0)      # 未立即全量渲染
+
+    def test_set_zoom_non_defer_renders_immediately(self):
+        a = FakeApp()
+        app.App._set_zoom(a, 2.0)
+        self.assertEqual(a.rendered, 1)
+
+    def test_slider_drag_schedules_not_renders(self):
+        # 拖动滑块：连续事件只排队合并渲染，不逐事件全量渲染（卡顿根源）
+        a = FakeApp()
+        app.App._on_zoom_slider(a, '150')
+        self.assertAlmostEqual(a.preview_scale, 1.5, places=6)
+        self.assertEqual(a.scheduled, 1)
+        self.assertEqual(a.rendered, 0)
+
+    def test_wheel_renders_immediately(self):
+        # 滚轮单步仍即时渲染（用户期望即时反馈）
+        a = FakeApp()
+        app.App._on_wheel(a, SimpleNamespace(delta=120, x=400, y=300))
+        self.assertEqual(a.rendered, 1)
+
+
+class TestClampedView(unittest.TestCase):
+    def test_large_zoom_clamps_output_and_view(self):
+        # 大图放大：输出钳制到画布过扫描，view 指向可见区域（不渲染 scale x 全图）
+        a = FakeApp(img_size=(6000, 4000))
+        a._preview_disp = (3000, 2000, 0.5, 100.0, 100.0)
+        app.App._zoom_around(a, 400, 300, 2.0)
+        self.assertEqual(a.preview_scale, 2.0)
+        self.assertGreater(a._view_x, 0)   # 窗口已进入图像内部（可见区域）
+        self.assertGreater(a._view_y, 0)
+        # 输出钳制：vw = out_w/scale，out_w <= 790*1.25
+        # 直接验证 view 钳制在图像范围内
+        self.assertLessEqual(a._view_x, 6000)
+        self.assertLessEqual(a._view_y, 4000)
+
+    def test_small_zoom_keeps_view_zero(self):
+        # 缩小/fit 未触发钳制：view 恒 0（全图渲染，兼容旧逻辑）
+        a = FakeApp(img_size=(6000, 4000))
+        a.preview_scale = 0.5
+        a._preview_disp = (3000, 2000, 0.5, 100.0, 100.0)
+        app.App._zoom_around(a, 400, 300, 0.5)
+        self.assertEqual(a._view_x, 0.0)
+        self.assertEqual(a._view_y, 0.0)
+        self.assertEqual(a.preview_scale, 0.5)
+
+
 class TestZoomAround(unittest.TestCase):
     def test_zoom_keeps_mouse_point_fixed(self):
         a = FakeApp()
@@ -192,10 +259,12 @@ class TestZoomAround(unittest.TestCase):
         a._preview_disp = (500, 300, 0.5, 100.0, 100.0)
         # 鼠标在画布 (400, 300) -> 图像坐标 (600, 400)
         app.App._zoom_around(a, 400, 300, 1.0)
-        # 新 ox0 = 790/2-500 = -105, oy0 = 590/2-300 = -5
-        # pan_x = 400-(-105)-600 = -95; pan_y = 300-(-5)-400 = -95
-        self.assertAlmostEqual(a._pan_x, -95.0, places=6)
-        self.assertAlmostEqual(a._pan_y, -95.0, places=6)
+        # 放大 1.0 时输出钳制到画布过扫描 987.5px（1000>987.5 触发可见区域渲染）
+        # 窗口 vw=987.5 -> nvx 钳到 12.5（图像右缘），pan 保持 0
+        self.assertAlmostEqual(a._pan_x, 0.0, places=6)
+        self.assertAlmostEqual(a._pan_y, 0.0, places=6)
+        self.assertAlmostEqual(a._view_x, 12.5, places=6)
+        self.assertAlmostEqual(a._view_y, 0.0, places=6)
         self.assertEqual(a.preview_scale, 1.0)
 
     def test_zoom_to_fit_uses_fit_effective_scale(self):
@@ -203,11 +272,11 @@ class TestZoomAround(unittest.TestCase):
         a.preview_scale = 2.0
         a._preview_disp = (2000, 1200, 2.0, -600.0, -300.0)
         app.App._zoom_around(a, 400, 300, 'fit')
-        # 内容区 790x590；fit 有效比 0.79；鼠标图像坐标 (500, 300)
-        # 新 ox0 = 395-790/2 = 0, oy0 = 295-474/2 = 58
-        # pan_x = 400-0-500*0.79 = 5; pan_y = 300-58-300*0.79 = 5
-        self.assertAlmostEqual(a._pan_x, 5.0, places=4)
-        self.assertAlmostEqual(a._pan_y, 5.0, places=4)
+        # fit 输出 790x474 未钳制（< 画布过扫描），窗口=全图（view 归 0），pan 归 0
+        self.assertAlmostEqual(a._pan_x, 0.0, places=4)
+        self.assertAlmostEqual(a._pan_y, 0.0, places=4)
+        self.assertAlmostEqual(a._view_x, 0.0, places=4)
+        self.assertAlmostEqual(a._view_y, 0.0, places=4)
         self.assertEqual(a.preview_scale, 'fit')
 
 

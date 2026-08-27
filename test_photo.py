@@ -137,5 +137,59 @@ class TestRender(unittest.TestCase):
         self.assertTrue(white, '水印文字应渲染为白色')
 
 
+
+
+class TestCroppedWatermark(unittest.TestCase):
+    """裁剪预览图（大图放大）模式：render_watermark 按全图坐标定位水印，
+    与全图渲染后裁剪对应区域逐像素一致（防止水印位置错乱）。"""
+    BASE = {
+        'template': '{make}  {model}   {shutter}  {aperture}  {iso}',
+        'font_family': '', 'font_size_pct': 2.0, 'line_spacing': 0.35,
+        'bg_padding': 0.6, 'anchor': 7, 'margin_pct': 5.0,
+        'offset_x_pct': 0.0, 'offset_y_pct': 0.0,
+        'bg_enabled': True, 'bg_color': '#000000', 'bg_opacity': 0.5,
+        'text_color': '#ffffff', 'text_opacity': 1.0,
+        'shadow_enabled': False, 'outline_enabled': False,
+    }
+    VALUES = {'make': 'SONY', 'model': 'ILCE-7M4', 'shutter': '1/100s',
+              'aperture': 'F5', 'iso': 'ISO 100'}
+
+    def _assert_aligns(self, img_size=(1200, 1800)):
+        img = Image.new('RGB', img_size, (40, 40, 40))
+        full_out = photo.render_watermark(img, dict(self.BASE), dict(self.VALUES))
+        r = photo.watermark_rect(img, dict(self.BASE), dict(self.VALUES))
+        self.assertIsNotNone(r)
+        W, H = img.size
+        vcx = (r[0] + r[2]) // 2
+        vcy = (r[1] + r[3]) // 2
+        vw, vh = 500, 400
+        vx = max(0, min(W - vw, vcx - vw // 2))
+        vy = max(0, min(H - vh, vcy - vh // 2))
+        crop = img.crop((vx, vy, vx + vw, vy + vh))
+        crop_out = photo.render_watermark(crop, dict(self.BASE), dict(self.VALUES),
+                                          full_size=(W, H), origin=(vx, vy))
+        full_patch = full_out.crop((vx, vy, vx + vw, vy + vh))
+        self.assertEqual(crop_out.size, full_patch.size)
+        p1 = full_patch.load(); p2 = crop_out.load()
+        for y in range(0, full_patch.size[1], 3):
+            for x in range(0, full_patch.size[0], 3):
+                self.assertEqual(p1[x, y], p2[x, y],
+                                 '裁剪预览水印与全图渲染不一致 @ (%d,%d)' % (x, y))
+
+    def test_aligns_landscape(self):
+        self._assert_aligns((1600, 1000))
+
+    def test_aligns_portrait(self):
+        self._assert_aligns((1200, 1800))
+
+    def test_watermark_outside_crop_returns_unchanged(self):
+        img = Image.new('RGB', (1000, 800), (40, 40, 40))
+        # 窗口选在左上角极小区域，水印（右下角）完全在窗外
+        crop = img.crop((0, 0, 100, 80))
+        out = photo.render_watermark(crop, dict(self.BASE), dict(self.VALUES),
+                                     full_size=img.size, origin=(0, 0))
+        px = out.load()
+        self.assertEqual(px[50, 40], (40, 40, 40), '水印在窗口外时不应绘制')
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

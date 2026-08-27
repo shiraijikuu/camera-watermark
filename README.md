@@ -155,9 +155,9 @@ See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.m
 
 ## Release Notes / 更新公告（v1.9.0）
 
-**EN: Dual-source fallback.** Update check & plugin store now also query GitHub raw when jsDelivr @main cache lags — existing users get updates immediately without config changes.
+**EN: Preview performance + dual-source fallback.** Zoomed previews render only the visible region (capped to 1.25x canvas) — faster, no memory spikes, pixel-exact watermark; update check & plugin store also query GitHub raw when jsDelivr @main cache lags.
 
-**中文：双源回退。** 更新检测与插件商店在 jsDelivr @main 缓存滞后时自动改查 GitHub raw 权威源，存量用户无需改配置即时生效。
+**中文：预览性能优化 + 双源回退。** 放大预览只渲染可见区域（上限画布 1.25 倍）、更快不爆内存、水印位置严格一致；更新检测与插件商店在 jsDelivr @main 缓存滞后时自动改查 GitHub raw 权威源。
 
 > ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.7.0 once** — the old auto-updater cannot upgrade to this version; after installing v1.7.0, auto-update works again.
 > ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.7.0 一次** — 旧版自动更新无法升级到本版；安装 v1.7.0 后自动更新恢复正常。
