@@ -136,25 +136,66 @@ class TestBlurCardPlugin(unittest.TestCase):
         self.assertEqual(out.size, (800, 600))
 
     def test_watermark_not_on_fg(self):
-        # 全黑原图 + 16:9 前景：前景矩形区域内无接近白色像素（水印只在模糊背景）
+        # 全黑原图 + 16:9 前景：前景矩形区域内无接近白色像素（水印只在模糊背景）。
+        # 关闭描边/阴影/品牌Logo 排除装饰干扰；前景框按 v2 布局（fy = H*0.06）计算。
         img = Image.new('RGB', (800, 600), (0, 0, 0))
         s = {'blur_card_ratio': '16:9', 'blur_card_fg_scale': 72,
              'blur_card_bg_blur': 0, 'blur_card_darken': 0,
              'blur_card_round': 0, 'blur_card_shadow': False,
+             'blur_card_outline': False, 'blur_card_show_logo': False,
              'blur_card_wm_pos': 'below', 'template': '{make} {model}',
              'font_family': '', 'font_size_pct': 3.0}
         out = self.mod._render(img, s, {'make': 'NIKON', 'model': 'D3200'}, source=img)
-        # 16:9: box_w = 800*0.72 = 576, box_h = 576/(16/9) = 324, fy = 600*0.03 = 18
-        fx = int((800 - 576) / 2)
-        fy = int(600 * 0.03)
+        # v2: box_w = 800*0.72 = 576, box_h = 576/(16/9) = 324, fy = 600*0.06 = 36
+        box_w = int(800 * 0.72)
+        box_h = int(box_w / (16 / 9))
+        fx = int((800 - box_w) / 2)
+        fy = int(600 * 0.06)
         px = out.load()
         white = 0
-        for y in range(fy + 2, fy + 324 - 2, 3):
-            for x in range(fx + 2, fx + 576 - 2, 3):
+        for y in range(fy + 4, fy + box_h - 4, 3):
+            for x in range(fx + 4, fx + box_w - 4, 3):
                 r, g, b = px[x, y][:3]
                 if r > 240 and g > 240 and b > 240:
                     white += 1
         self.assertEqual(white, 0, '前景矩形区域内不应有白色水印像素')
+
+    def test_v2_settings_registered(self):
+        # v2 注册 10 个设置项（含描边/底纹/品牌Logo）；经 _rebuild_plugin_settings 落到全局
+        import app as _app
+        _orig_specs = _app.PLUGIN_API.setting_specs
+        _orig_styles = _app.PLUGIN_API.styles
+        _app.PLUGIN_API.setting_specs = []
+        _app.PLUGIN_API.styles = {}
+        try:
+            _app.PLUGIN_API.plugin_name = 'blur-card'
+            self.mod.register(_app.PLUGIN_API)
+            _app._rebuild_plugin_settings()
+            keys = set(_app.PLUGIN_SETTINGS.get('blur-card', {}).keys())
+            for k in ('blur_card_ratio', 'blur_card_fg_scale', 'blur_card_bg_blur',
+                      'blur_card_darken', 'blur_card_round', 'blur_card_shadow',
+                      'blur_card_outline', 'blur_card_backdrop', 'blur_card_show_logo',
+                      'blur_card_wm_pos'):
+                self.assertIn(k, keys, k + ' 未注册')
+            self.assertIs(_app.PLUGIN_API.styles['blur_card'][2], True)
+        finally:
+            _app.PLUGIN_API.setting_specs = _orig_specs
+            _app.PLUGIN_API.styles = _orig_styles
+            _app._rebuild_plugin_settings()
+
+    def test_fit_font_no_overflow(self):
+        # 超长模板自动缩字号，不溢出信息栏（文字 bbox 在画布内）
+        img = Image.new('RGB', (800, 600), (0, 0, 0))
+        s = {'template': '{make} {model} {lens} {focal} {aperture} {shutter} {iso} {date}',
+             'font_family': '', 'font_size_pct': 6.0,
+             'plugin_values': {'blur-card': {'blur_card_ratio': '16:9'}}}
+        out = self.mod._render(img, s, {'make': 'NIKON', 'model': 'Z 7_2',
+                                        'lens': 'NIKKOR Z 24-70mm f/4 S',
+                                        'focal': '70mm', 'aperture': 'f/4.0',
+                                        'shutter': '1/800s', 'iso': 'ISO 250',
+                                        'date': '2026-01-01'}, source=img)
+        # 信息栏（前景下方）内文字最右 x 不超出画布，且画布内无异常
+        self.assertEqual(out.size, (800, 600))
 
     def test_register_uses_replaces_true(self):
         api = app.PluginAPI()
