@@ -1,6 +1,6 @@
 {
-  "version": "1.9.0",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.9.0/PhotoWatermark-v1.9.0.exe",
-  "note": "v1.9.0: Preview performance (visible-region render, faster resize, slider throttle, pixel-exact watermark) + fix reversed & jumpy zoomed drag (smooth follow) + dual-source fallback for update/store. / 预览性能优化 + 修复放大拖拽反向与跳跃（平滑跟随）+ 双源回退。",
-  "checksum": "325431c6674371582329f8799d59bf4376e02f65dd39cdee9c5c3aeb9a29b5c3"
+  "version": "2.0.0",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v2.0.0/PhotoWatermark-v2.0.0.exe",
+  "note": "v2.0.0: 2.0 style engine - Blur Card style (blur bg + clear fg + camera info bar), replaces_watermark API, overlay brand-logo image watermarks, 10 camera logo presets. / 2.0 样式引擎：模糊卡片样式、整图重绘API、品牌logo叠加、10个相机logo预设。",
+  "checksum": "a672f403ab89f60ebcb446f6e66b4f97279dce976ea56e1d62544c2af85fbaf8"
 }

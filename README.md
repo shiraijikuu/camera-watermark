@@ -4,7 +4,7 @@
 
 **中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
-- **Version / 版本：** v1.9.0
+- **Version / 版本：** v2.0.0
 - **Author / 作者：** Shiraijikuu (GitHub)
 - **AI assistance / AI 协助：** OpenAI Codex
 - **License / 许可证：** MIT (LICENSE)
@@ -153,11 +153,11 @@ See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.m
 3. **向微软提交误报**：https://www.microsoft.com/en-us/wdsi/filesubmission （通常几天内清除）。
 4. 自行验证：源码公开（MIT），可按 RELEASE.md 从源码自行打包。
 
-## Release Notes / 更新公告（v1.9.0）
+## Release Notes / 更新公告（v2.0.0）
 
-**EN: Preview performance + smooth zoomed drag + dual-source fallback.** Zoomed previews render only the visible region (capped 1.25x canvas); zoomed drag is smooth (follows cursor, no jumps); update check & plugin store also query GitHub raw when jsDelivr @main cache lags.
+**EN: 2.0 style engine.** New "Blur Card" style (blurred bg + clear photo + camera info bar); style API supports whole-image-redraw; Blur Card overlays brand-logo image watermarks; 10 camera-brand logo presets added.
 
-**中文：预览性能优化 + 放大拖拽平滑 + 双源回退。** 放大预览只渲染可见区域（上限画布 1.25 倍）；放大拖拽平滑跟随鼠标、无跳跃；更新检测与插件商店在 jsDelivr @main 缓存滞后时自动改查 GitHub raw 权威源。
+**中文：2.0 样式引擎。** 新增「模糊卡片」样式；样式 API 支持整图重绘；模糊卡片可与品牌 logo 图片水印同屏叠加；新增 10 个相机品牌 logo 预设。
 
 > ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.7.0 once** — the old auto-updater cannot upgrade to this version; after installing v1.7.0, auto-update works again.
 > ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.7.0 一次** — 旧版自动更新无法升级到本版；安装 v1.7.0 后自动更新恢复正常。
