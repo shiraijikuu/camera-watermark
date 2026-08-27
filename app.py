@@ -101,10 +101,17 @@ class PluginAPI:
         if name and isinstance(template, str):
             self.presets[name] = template
 
-    def add_watermark_style(self, name, label, renderer):
-        """新增水印样式。renderer(img, settings, values) 返回绘制后的 PIL 图像。"""
+    def add_watermark_style(self, name, label, renderer, replaces_watermark=False):
+        """新增水印样式。
+        renderer(img, settings, values, source=None) 返回绘制后的 PIL 图像。
+          - replaces_watermark=False（默认）：兼容型。先画默认文字水印，
+            renderer 在带文字水印的图上叠加（图片水印插件即此类，行为不变）。
+          - replaces_watermark=True：整图重绘型。跳过默认文字水印，
+            renderer 直接收到无水印原图，水印由插件全权绘制（模糊卡片即此类）。
+        兼容旧插件：3 参调用时 replaces 默认 False，行为不变。"""
         if name and callable(renderer):
-            self.styles[name] = (label, renderer)
+            # 关键：统一存三元组，避免旧插件二元组导致 _render_with_style 解包崩溃
+            self.styles[name] = (label, renderer, bool(replaces_watermark))
 
     def on_export(self, func):
         """导出钩子：水印绘制后、保存前调用 func(img, meta, settings)，可返回修改后的图像。"""
@@ -125,6 +132,29 @@ class PluginAPI:
         回调内请用 try/except 防护。"""
         if callable(func):
             self.window_created_hooks.append(func)
+
+
+def _call_style_renderer(renderer, out, settings, values, source):
+    """调用插件水印样式 renderer，按参数个数决定是否传 source（兼容旧 3 参 renderer）。
+    source 为无水印原图：整图重绘型样式（如模糊卡片）用它做清晰前景。"""
+    try:
+        import inspect
+        try:
+            n = len(inspect.signature(renderer).parameters)
+        except (TypeError, ValueError):
+            n = 3
+    except Exception:
+        n = 3
+    try:
+        if n >= 4:
+            return renderer(out, settings, values, source)
+        return renderer(out, settings, values)
+    except TypeError:
+        # 兜底：签名检测失败/不一致时回退尝试另一种调用
+        try:
+            return renderer(out, settings, values, source)
+        except TypeError:
+            return renderer(out, settings, values)
 
 
 def load_plugins():
@@ -761,7 +791,7 @@ class PluginSettingsWindow:
         # 若当前还是默认文字样式且插件有水印样式，提示切换，避免"设置了却看不到"
         if PLUGIN_API.styles and self.parent.settings.get('style', 'default') == 'default':
             if messagebox.askyesno(tr('提示'), tr('是否切换到插件的水印样式？')):
-                for _name, (label, _r) in PLUGIN_API.styles.items():
+                for _name, (label, _r, _replaces) in PLUGIN_API.styles.items():
                     self.parent.style_var.set(label)
                     break
                 self.parent._on_change()
@@ -1545,25 +1575,42 @@ class App:
     def _style_labels(self):
         """返回 {显示名: 样式键}"""
         d = {tr('默认'): 'default'}
-        for name, (label, _r) in PLUGIN_API.styles.items():
+        for name, (label, _r, _replaces) in PLUGIN_API.styles.items():
             d[label] = name
         return d
 
     def _refresh_style_choices(self):
-        opts = [tr('默认')] + [label for _n, (label, _r) in PLUGIN_API.styles.items()]
+        opts = [tr('默认')] + [label for _n, (label, _r, _replaces) in PLUGIN_API.styles.items()]
         self.style_combo['values'] = opts
         self.style_var.set(self._style_labels().get(self.settings.get('style', 'default'), tr('默认')))
 
     def _render_with_style(self, img, settings, values, full_size=None, origin=(0, 0), apply_style=True):
-        # 1) 先绘制文字水印（full_size/origin 供裁剪预览图按全图坐标定位）
-        out = photo.render_watermark(img, settings, values, fonts_dir=FONTS_DIR,
-                                     full_size=full_size, origin=origin)
-        # 2) 再叠加插件水印样式（如图片水印）。裁剪模式下插件样式基于局部图坐标
-        #    无法对齐全图，跳过以避免水印位置错乱（文字水印 + 命中矩形已指示位置）
+        """渲染文字水印 + 插件水印样式。
+        - 整图重绘型（replaces=True）：跳过默认文字水印，renderer 直接拿无水印原图
+          （如模糊卡片：水印由插件独占绘制，保证前景区域干净）。
+        - 兼容型（replaces=False）：先画默认文字水印，renderer 在带水印图上叠加
+          （图片水印插件即此类，行为不变）。
+        裁剪预览模式（apply_style=False）下跳过插件样式，与现有图片水印一致。"""
         style = settings.get('style', 'default')
+        replaces = False
+        if style != 'default' and style in PLUGIN_API.styles:
+            _label, _renderer, replaces = PLUGIN_API.styles[style]
+        # 1) 默认文字水印（整图重绘型跳过，避免重复画默认水印）
+        if not (apply_style and replaces):
+            out = photo.render_watermark(img, settings, values, fonts_dir=FONTS_DIR,
+                                         full_size=full_size, origin=origin)
+        else:
+            out = img
+        # 2) 插件水印样式
         if apply_style and style != 'default' and style in PLUGIN_API.styles:
-            _label, renderer = PLUGIN_API.styles[style]
-            res = renderer(out, settings, values)
+            _label, renderer, replaces2 = PLUGIN_API.styles[style]
+            if replaces2:
+                res = _call_style_renderer(renderer, img, settings, values, img)
+            else:
+                # 兼容型：renderer 需要带文字水印的图（与旧版一致），此处重新渲染
+                wm = photo.render_watermark(img, settings, values, fonts_dir=FONTS_DIR,
+                                            full_size=full_size, origin=origin)
+                res = _call_style_renderer(renderer, wm, settings, values, img)
             if res is not None:
                 out = res
         return out
