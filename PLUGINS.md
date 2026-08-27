@@ -171,7 +171,8 @@ def register(api):
     api.on_ui_ready(init_ui)
 ```
 
-> 完整示例见 `plugin-repos/ui-booster/`（可打包成独立插件仓库发布）。
+> 实战示例：**theme-switcher** 插件（主题切换：黑夜 / 白天 / 跟随系统）已发布为独立插件仓库
+> [PhotoWatermark-theme-switcher](https://github.com/shiraijikuu/PhotoWatermark-theme-switcher)，可在插件商店安装。
 
 ## 全部 API 一览
 

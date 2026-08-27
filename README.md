@@ -21,9 +21,11 @@
 - Batch export to JPG / PNG / WebP / BMP, EXIF preserved for JPG
 - 3 languages: 简体中文 / English / 繁體中文 (switch on the Export tab)
 - Custom fonts (fonts/ folder or in-app)
-- Plugin system: tokens / camera names / formats / presets / watermark styles / export hooks
+- Plugin system: tokens / camera names / formats / presets / watermark styles / export hooks / settings / UI hooks
 - Plugin Manager window (status / add .zip .py / refresh)
-- Hot update (configure update_url in config.json)
+- Plugin Store: browse the catalog & one-click install/update plugins (version + checksum detection)
+- Plugin UI hook (on_ui_ready): plugins can customize the main UI (e.g. dark/light theme)
+- Hot update with checksum detection (configure update_url in config.json; same-version rebuilds are detected)
 - Settings auto-saved (config.json)
 
 **中文**
@@ -36,9 +38,11 @@
 - 批量导出 JPG / PNG / WebP / BMP，JPG 可保留 EXIF
 - 三种语言：简体中文 / English / 繁體中文（「导出」页一键切换）
 - 自定义字体（fonts/ 文件夹或界面添加）
-- 插件系统：自定义变量 / 相机名 / 导出格式 / 模板预设 / 水印样式 / 导出钩子
+- 插件系统：自定义变量 / 相机名 / 导出格式 / 模板预设 / 水印样式 / 导出钩子 / 设置项 / UI 扩展
 - 插件管理窗口（查看状态 / 添加 .zip .py / 刷新）
-- 热更新（config.json 配置 update_url）
+- 插件商店：浏览目录、一键安装/更新插件（版本号 + 校验和检测）
+- 插件 UI 扩展点 on_ui_ready：插件可定制主界面（如主题切换）
+- 热更新 + 校验和检测（config.json 配置 update_url；同版本号重新发布也能检测到）
 - 设置自动保存（config.json）
 
 ## Quick Start / 快速开始
@@ -86,7 +90,7 @@ Default "Camera + Settings" template / 默认「相机 + 参数」模板：{make
 
 ## Plugin Development / 插件开发
 
-See PLUGINS.md. A plugin is a folder inside plugins/ containing plugin.py with a register(api) function. 6 extension points: 见 PLUGINS.md。插件 = plugins/ 里的一个文件夹，内含 plugin.py，实现 register(api) 即可，共 6 种扩展点：
+See PLUGINS.md. A plugin is a folder inside plugins/ containing plugin.py with a register(api) function. 8 extension points: 见 PLUGINS.md。插件 = plugins/ 里的一个文件夹，内含 plugin.py，实现 register(api) 即可，共 8 种扩展点：
 
 | API | What it does / 作用 |
 |-----|------|
@@ -96,6 +100,8 @@ See PLUGINS.md. A plugin is a folder inside plugins/ containing plugin.py with a
 | add_template_preset(name, template) | Add template presets / 新增模板预设 |
 | add_watermark_style(name, label, renderer) | Custom watermark styles / 自定义水印样式 |
 | on_export(func) | Pre-save hook / 导出前处理钩子 |
+| add_setting(key, label, kind, default, options) | Plugin settings window / 插件设置项 |
+| on_ui_ready(func) | Post-UI-build hook: add/change widgets (needs restart) / 主界面构建完成后回调（可加控件，需重启） |
 
 The Plugin Manager window (Export tab) shows load status and lets you add (.zip/.py) or refresh. 「导出」页的「插件管理」窗口可查看加载状态 / 添加(.zip/.py) / 刷新。
 
