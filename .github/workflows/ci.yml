@@ -22,7 +22,12 @@ jobs:
       - name: Install tkinter (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
+          # GitHub 托管 Runner 的 Microsoft 源偶发 403，重试几次避免 CI 误红
+          for i in 1 2 3 4 5; do
+            sudo apt-get update -o Acquire::Retries=5 && break
+            echo "apt-get update failed, retrying ($i)..."
+            sleep 10
+          done
           sudo apt-get install -y python3-tk
 
       - name: Install Python dependencies
