@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
   "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v2.0.0/PhotoWatermark-v2.0.0.exe",
-  "note": "v2.0.0: 2.0 style engine - Blur Card style, replaces_watermark API, overlay brand-logo image watermarks, 10 camera logo presets; + drag fix (plugin text draggable, dynamic offset bounds). / 2.0 样式引擎 + 拖拽修复（插件文字可拖、动态边界）。",
-  "checksum": "d9f6d9c05a55e40fc1caeccf955a58133433e769d89ea1a0a235a7411af16fe1"
+  "note": "v2.0.0: 2.0 style engine + drag fix + plugin-settings mouse-wheel scrolling. / 2.0 样式引擎 + 拖拽修复 + 插件设置滚轮滚动。",
+  "checksum": "173671d16b8888d6630209e5faf6ea96bf2fee11766b7c9920abc3b14c636066"
 }
