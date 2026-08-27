@@ -2178,10 +2178,11 @@ class App:
         # 平移超出渲染缓冲（渲染图已不能覆盖画布）-> 窗口跟随平移并重渲染
         cw = max(120, self.canvas.winfo_width() - 10)
         ch = max(120, self.canvas.winfo_height() - 10)
+        # 方向：item 右移（pan_x>0）露出左侧，窗口应左移保持视觉连续 => vx -= pan_x/scale
         if ox > 0 or oy > 0 or ox + disp_w < cw or oy + disp_h < ch:
             if scale > 0:
-                self._view_x += self._pan_x / scale
-                self._view_y += self._pan_y / scale
+                self._view_x -= self._pan_x / scale
+                self._view_y -= self._pan_y / scale
             self._pan_x = 0
             self._pan_y = 0
             self._render_preview()

@@ -1,6 +1,6 @@
 {
   "version": "1.9.0",
   "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.9.0/PhotoWatermark-v1.9.0.exe",
-  "note": "v1.9.0: Preview performance (render only visible region when zoomed, capped 1.25x canvas; faster resize; slider throttle; pixel-exact watermark in zoom) + dual-source fallback for update/store. / 预览性能优化（放大只渲染可见区域、缩放提速、滑块节流、水印位置严格一致）+ 更新/商店双源回退。",
-  "checksum": "a84e562cbd9915c3c4b1ffc4b6800fcf77b382a25b39ce7418ae65639a2a97a6"
+  "note": "v1.9.0: Preview performance (visible-region render, faster resize, slider throttle, pixel-exact watermark in zoom) + fix reversed drag in zoomed preview + dual-source fallback for update/store. / 预览性能优化 + 修复放大拖拽反向 + 更新/商店双源回退。",
+  "checksum": "1aa55e0073a6e486aec971a67b07381188c17a26d8d3ae757cf2017f0f41a4e2"
 }
