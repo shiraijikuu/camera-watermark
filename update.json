@@ -1,6 +1,6 @@
 {
-  "version": "1.6.0",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.6.0/PhotoWatermark-v1.6.0.exe",
-  "note": "v1.6.0: Fix language-switch relaunch crash; new plugin extension point api.on_window_created. / 修复切换语言重启崩溃；新增插件扩展点 on_window_created。",
-  "checksum": "07188a9afa95ac18cd6b4819d4d59a068178a96abf007a53d7e9e7503bd92ab6"
+  "version": "1.7.0",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.7.0/PhotoWatermark-v1.7.0.exe",
+  "note": "v1.7.0: Fix dynamic-window theming timing + drag & drop photo folder. / 修复动态窗口主题适配时机 + 拖拽加载照片文件夹。",
+  "checksum": "5fd45b20319112bd08013125b5f7092310e4327a4fed0fa69e5c56428681b4bf"
 }

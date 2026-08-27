@@ -62,7 +62,7 @@ def _clean_pyi_env():
     父进程校验失败，报 "Failed to start embedded python interpreter!"。"""
     for _k in ('_PYI_PARENT_PROCESS_LEVEL', '_PYI_ARCHIVE_FILE', '_PYI_APPLICATION_HOME_DIR'):
         os.environ.pop(_k, None)
-APP_VERSION = '1.6.0'
+APP_VERSION = '1.7.0'
 
 # ==================== 插件系统 ====================
 class PluginAPI:
