@@ -25,15 +25,15 @@
       "author": "shiraijikuu",
       "repo": "shiraijikuu/PhotoWatermark-theme-switcher",
       "license": "MIT",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "tags": [
         "theme",
         "ui",
         "dark-mode",
         "light-mode"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-theme-switcher/releases/download/v1.0.2/PhotoWatermark-theme-switcher-v1.0.2.zip",
-      "checksum": "236bf062598cea4bf4bc43506848469641d7d557177d2626c28f7a47b05091a6",
+      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-theme-switcher/releases/download/v1.0.3/PhotoWatermark-theme-switcher-v1.0.3.zip",
+      "checksum": "ad8ab2828c7596686a78c858394ec5c4d055c898fc5b74950ed673a61f158699",
       "updated_at": "2026-08-27"
     }
   ]
