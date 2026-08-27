@@ -4,19 +4,19 @@
     {
       "id": "image-watermark",
       "name": "Image Watermark",
-      "description": "自定义图片水印（PNG/JPG/GIF）+ 10 个相机品牌 logo 预设，支持大小/位置/旋转/透明度，RAW 自动跳过",
+      "description": "自定义图片水印（PNG/JPG/GIF）+ 10 相机品牌 logo 预设 + 与文字对齐布局（左/右/上/下+间距），支持大小/位置/旋转/透明度，RAW 自动跳过",
       "author": "shiraijikuu",
       "repo": "shiraijikuu/PhotoWatermark-image-watermark",
       "license": "MIT",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "tags": [
         "watermark",
         "image",
         "gif",
         "logo"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.1.0/PhotoWatermark-image-watermark-v1.1.0.zip",
-      "checksum": "a958f8bfd723a7b87e3ec75be4abf628e2fc69fe75a353ab34445bc4072c7522",
+      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.2.0/PhotoWatermark-image-watermark-v1.2.0.zip",
+      "checksum": "37405f6deda285538d25561482d8ee327eca2e8b97488b1c7ecc64a5428cdb00",
       "updated_at": "2026-08-28"
     },
     {
