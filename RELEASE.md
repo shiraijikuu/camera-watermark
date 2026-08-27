@@ -77,6 +77,19 @@ Note: keep dist and open-source out of git (see .gitignore). / 注意：dist 和
    - `PhotoWatermark-x.y.z.exe` (hot-update asset / 热更新下载用)
 6. Publish release / 发布
 
+## 5.5 Purge CDN cache / 刷新 CDN 缓存（重要，发布后必做）
+
+The app reads manifests (`update.json` / `plugins.json`) from the jsDelivr CDN by default.
+jsDelivr may serve a **stale cached copy** for a while after a push, so the store / hot-update won't see the new version immediately.
+
+应用默认从 jsDelivr CDN 读取清单（update.json / plugins.json）。推送后 jsDelivr 可能仍返回旧缓存，
+商店 / 热更新无法立刻看到新版本。发布后请执行一次 purge（几秒生效）：
+
+    curl https://purge.jsdelivr.net/gh/shiraijikuu/camera-watermark@main/plugins.json
+    curl https://purge.jsdelivr.net/gh/shiraijikuu/camera-watermark@main/update.json
+
+（返回 `{"status":"finished"}` 即成功；GitHub 上的内容始终是对的，只是 CDN 缓存滞后。）
+
 ## 6. Plugin checksum must be in sync / 插件 checksum 必须同步（重要）
 
 When you re-publish a plugin zip (even with the same version), the store verifies the downloaded file against
