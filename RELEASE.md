@@ -38,7 +38,7 @@ Edit these files / 修改以下文件：
     pip install -r requirements-dev.txt
     # 生成版本信息（从 app.py 的 APP_VERSION 读取，降低杀软误报）
     python make_version_info.py
-    pyinstaller --noconfirm --clean --onefile --windowed --name "PhotoWatermark" --hidden-import "PIL._tkinter_finder" --version-file version_info.txt app.py
+    pyinstaller --noconfirm --clean --onefile --windowed --name "PhotoWatermark" --hidden-import "PIL._tkinter_finder" --hidden-import "windnd" --collect-all "tkinterdnd2" --version-file version_info.txt app.py
 
 Output is in dist/. Then / 产物在 dist/，然后：
 - Copy the new exe as the hot-update asset / 复制新版 exe 作为热更新附件：

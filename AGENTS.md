@@ -2,7 +2,7 @@
 
 除工作区规则（见 E:\codex\AGENTS.md）外，本项目的额外约定：
 
-- 当前版本：主程序 **v1.7.1**（`app.py` 的 `APP_VERSION`）
+- 当前版本：主程序 **v1.7.2**（`app.py` 的 `APP_VERSION`）
 - 插件各自带版本号（`PLUGIN_VERSION`），插件在独立仓库维护，不放入本体
 - 版本历史见 `CHANGELOG.md`，发布流程见 `RELEASE.md`
 - **更新公告只保留当前版本**：`RELEASE_NOTES.md` 每版覆盖，不累积（完整历史在 CHANGELOG.md）

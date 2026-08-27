@@ -12,6 +12,7 @@ import lang
 
 
 GUIDE = '把照片文件夹拖进来 / 点上方「选择照片文件夹」'
+GUIDE_NO_DND = '点上方「选择照片文件夹」加载照片'
 
 
 class TestEmptyStateGuide(unittest.TestCase):
@@ -21,6 +22,12 @@ class TestEmptyStateGuide(unittest.TestCase):
         self.assertTrue(lang.EN[GUIDE].strip())
         self.assertTrue(lang.ZH_TW[GUIDE].strip())
 
+    def test_no_dnd_guide_registered_in_all_langs(self):
+        self.assertIn(GUIDE_NO_DND, lang.EN)
+        self.assertIn(GUIDE_NO_DND, lang.ZH_TW)
+        self.assertTrue(lang.EN[GUIDE_NO_DND].strip())
+        self.assertTrue(lang.ZH_TW[GUIDE_NO_DND].strip())
+
     def test_tr_returns_nonempty(self):
         from lang import tr, set_lang, get_lang
         orig = get_lang()
@@ -28,6 +35,7 @@ class TestEmptyStateGuide(unittest.TestCase):
             for code in ('zh', 'en', 'zh_tw'):
                 set_lang(code)
                 self.assertTrue(tr(GUIDE).strip())
+                self.assertTrue(tr(GUIDE_NO_DND).strip())
         finally:
             set_lang(orig)
 

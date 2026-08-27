@@ -1,6 +1,6 @@
 {
-  "version": "1.7.1",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.7.1/PhotoWatermark-v1.7.1.exe",
-  "note": "v1.7.1: UI fixes - thumbnails display, checkmark alignment, drag-to-pan, mouse-wheel zoom, real-time watermark drag. / 界面修复：缩略图显示、勾选对齐、拖拽平移、滚轮缩放、水印拖拽实时跟手。",
-  "checksum": "703ab9cd5175a5338505da71509de308d052aa20009e1f8b451c38ef15d92727"
+  "version": "1.7.2",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.7.2/PhotoWatermark-v1.7.2.exe",
+  "note": "v1.7.2: Fix drag & drop (tkinterdnd2, 64-bit stable), wheel zoom back to Fit / mouse-centered, gallery highlight under themes. / 修复拖拽（tkinterdnd2 稳定）、滚轮缩放回 fit 且以鼠标为中心、主题下选中高亮。",
+  "checksum": "84cc15a57a9af5a5d293e6f4edba7e342a39d2fbb06269c094fc1254cd5bcddb"
 }

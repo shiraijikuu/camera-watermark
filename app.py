@@ -12,6 +12,7 @@ import urllib.request
 import zipfile
 import posixpath
 import hashlib
+import math
 import time
 
 import tkinter as tk
@@ -62,7 +63,7 @@ def _clean_pyi_env():
     父进程校验失败，报 "Failed to start embedded python interpreter!"。"""
     for _k in ('_PYI_PARENT_PROCESS_LEVEL', '_PYI_ARCHIVE_FILE', '_PYI_APPLICATION_HOME_DIR'):
         os.environ.pop(_k, None)
-APP_VERSION = '1.7.1'
+APP_VERSION = '1.7.2'
 
 # ==================== 插件系统 ====================
 class PluginAPI:
@@ -588,8 +589,10 @@ class PluginSettingsWindow:
                         selected = (lbl == cur)
                         tile = tk.Frame(inner, bd=2, relief='solid',
                                         bg='#3b82f6' if selected else '#2a2d3a')
+                        tile._wm_keep_bg = True   # 主题插件应保留手动背景（选中态蓝色）
                         tile.pack(side='left', padx=3, pady=2)
                         th = tk.Label(tile, text=lbl[:8], fg='#eee', bg=tile['bg'])
+                        th._wm_keep_bg = True
                         if ipath and os.path.exists(str(ipath)):
                             try:
                                 im = Image.open(str(ipath))
@@ -910,6 +913,7 @@ class App:
         self.cancel = False
         self.msg_q = queue.Queue()
         self.preview_timer = None
+        self.drag_enabled = True   # 拖拽是否可用（_setup_drop 根据实际结果更新）
         try:
             os.makedirs(FONTS_DIR, exist_ok=True)
             os.makedirs(PLUGINS_DIR, exist_ok=True)
@@ -925,10 +929,10 @@ class App:
         self._loading = True          # 初始化控件值时不触发保存/重绘
         self._apply_settings_to_widgets()
         self._loading = False
+        self._setup_drop()          # 先启用拖拽（更新 drag_enabled），再刷新界面
         self._on_change()
         self.root.after(100, self._poll_queue)
         self._notify_ui_ready()
-        self._setup_drop()
 
     # ---------- UI 构建 ----------
     def _build_ui(self):
@@ -1522,10 +1526,24 @@ class App:
                 _log('插件 UI 初始化失败: %s' % e)
 
     def _setup_drop(self):
-        """启用拖拽文件夹到主窗口即可扫描（Windows，经 windnd）。"""
+        """启用把照片文件夹/图片拖进主窗口即可扫描。
+        首选 tkinterdnd2（64 位稳定、自带 tkdnd 原生库、打包可靠）；
+        失败再回退 windnd（32 位 Python 可用；64 位 windnd 回调可能访问冲突）。"""
+        self.drag_enabled = False
+        try:
+            from tkinterdnd2 import DND_FILES
+            self.root.drop_target_register(DND_FILES)
+            self.root.dnd_bind('<<Drop>>', self._on_dnd2_drop)
+            self.drag_enabled = True
+            _log('拖拽支持已启用（tkinterdnd2）')
+            return
+        except Exception as e:
+            _log('tkinterdnd2 拖拽初始化失败: %s' % e)
         try:
             import windnd
             windnd.hook_dropfiles(self.root, func=self._on_drop)
+            self.drag_enabled = True
+            _log('拖拽支持已启用（windnd）')
         except Exception as e:
             _log('拖拽支持初始化失败: %s' % e)
 
@@ -1533,6 +1551,35 @@ class App:
         folder = self._resolve_drop_folder(paths)
         if folder:
             self._start_scan(folder)
+
+    def _on_dnd2_drop(self, event):
+        """tkinterdnd2 拖放回调：event.data 为路径列表（含空格路径用 {} 包裹）。"""
+        data = getattr(event, 'data', '') or ''
+        paths = self._parse_dnd_paths(data)
+        folder = self._resolve_drop_folder(paths)
+        if folder:
+            self._start_scan(folder)
+
+    def _parse_dnd_paths(self, data):
+        """解析 tkdnd 的路径字符串：普通路径空格分隔，含空格路径用 {} 包裹（纯逻辑，便于测试）。"""
+        paths = []
+        i = 0
+        n = len(data)
+        while i < n:
+            if data[i] == '{':
+                j = data.find('}', i)
+                if j == -1:
+                    break
+                paths.append(data[i + 1:j])
+                i = j + 1
+            else:
+                j = i
+                while j < n and data[j] != ' ':
+                    j += 1
+                if j > i:
+                    paths.append(data[i:j])
+                i = j + 1
+        return [p for p in paths if p]
 
     def _resolve_drop_folder(self, paths):
         """从拖入路径中解析要扫描的文件夹（纯逻辑，便于测试）。"""
@@ -1897,22 +1944,79 @@ class App:
             return min(cw / max(1, ow), ch / max(1, oh), 2.0)
         return float(self.preview_scale)
 
-    def _set_zoom(self, v):
+    def _set_zoom(self, v, pan=None):
+        """设置缩放。pan 为 None 时回到画面中心（按钮点击）；否则使用指定平移（滚轮以鼠标为中心）。"""
         self.preview_scale = v
-        self._pan_x = 0
-        self._pan_y = 0
+        if pan is None:
+            self._pan_x = 0
+            self._pan_y = 0
+        else:
+            self._pan_x, self._pan_y = pan
         self._render_preview()
 
+    def _current_fit_scale(self):
+        """当前 fit 对应的实际缩放比（画布尺寸 x 原图尺寸，上限 2x）。"""
+        img = getattr(self, '_current_preview_full', None)
+        if img is None:
+            return 1.0
+        cw = max(120, self.canvas.winfo_width() - 10)
+        ch = max(120, self.canvas.winfo_height() - 10)
+        return min(cw / max(1, img.width), ch / max(1, img.height), 2.0)
+
     def _on_wheel(self, evt):
-        """滚轮逐级缩放（0.25 步进，范围 0.25~4.0；fit 时向上先到 100%）。"""
+        """滚轮逐级缩放：
+        - 0.25 步进，范围 0.25x~4.0x；
+        - fit 时向上到"比 fit 大一档"、向下到"比 fit 小一档"（不再突兀跳 100%）；
+        - 已到最小 0.25 再向下滚 -> 回到 fit（适应窗口），不会卡死；
+        - 以鼠标为中心缩放（保持鼠标下的图像点不动）。"""
         cur = self.preview_scale
+        up = evt.delta > 0
         if cur == 'fit':
-            # fit 状态下向上滚：先到 100%（实际尺寸），再逐级放大
-            new = 1.0 if evt.delta > 0 else 0.75
+            fit = self._current_fit_scale()
+            if up:
+                nxt = math.ceil(fit / 0.25 - 1e-9) * 0.25
+                if nxt <= fit + 1e-6:
+                    nxt = fit + 0.25
+                new = min(4.0, nxt)
+            else:
+                nxt = math.floor(fit / 0.25 + 1e-9) * 0.25
+                if nxt >= fit - 1e-6:
+                    nxt = fit - 0.25
+                new = max(0.25, nxt)
+        elif up:
+            new = min(4.0, float(cur) + 0.25)
         else:
-            step = 0.25 if evt.delta > 0 else -0.25
-            new = max(0.25, min(4.0, float(cur) + step))
-        self._set_zoom(new)
+            if float(cur) <= 0.25 + 1e-6:
+                new = 'fit'          # 最小档再往下滚 -> 回到适应窗口
+            else:
+                new = max(0.25, float(cur) - 0.25)
+        self._zoom_around(evt.x, evt.y, new)
+
+    def _zoom_around(self, cx, cy, new_scale):
+        """以画布坐标 (cx, cy) 为中心缩放：保持缩放前该点下的图像内容位置不变。"""
+        img = getattr(self, '_current_preview_full', None)
+        disp = getattr(self, '_preview_disp', None)
+        if img is None or disp is None:
+            self._set_zoom(new_scale)
+            return
+        _dw, _dh, scale, ox, oy = disp
+        if scale <= 0:
+            self._set_zoom(new_scale)
+            return
+        # 缩放前鼠标下的图像坐标（全分辨率）
+        ix = (cx - ox) / scale
+        iy = (cy - oy) / scale
+        # 新底图的有效缩放比
+        eff = self._current_fit_scale() if new_scale == 'fit' else float(new_scale)
+        cw = max(120, self.canvas.winfo_width() - 10)
+        ch = max(120, self.canvas.winfo_height() - 10)
+        new_w = img.width * eff
+        new_h = img.height * eff
+        ox0 = cw / 2 - new_w / 2
+        oy0 = ch / 2 - new_h / 2
+        pan_x = cx - ox0 - ix * eff
+        pan_y = cy - oy0 - iy * eff
+        self._set_zoom(new_scale, pan=(pan_x, pan_y))
 
     def _apply_pan(self):
         """把当前 _pan_x/_pan_y 应用到画布：只移动图片项 + 更新命中矩形，不重渲染。"""
@@ -2041,8 +2145,12 @@ class App:
             self.canvas.delete('all')
             cw = max(120, self.canvas.winfo_width())
             ch = max(120, self.canvas.winfo_height())
+            if getattr(self, 'drag_enabled', True):
+                guide = tr('把照片文件夹拖进来 / 点上方「选择照片文件夹」')
+            else:
+                guide = tr('点上方「选择照片文件夹」加载照片')
             self.canvas.create_text(cw // 2, ch // 2,
-                                    text=tr('把照片文件夹拖进来 / 点上方「选择照片文件夹」'),
+                                    text=guide,
                                     fill='#888', font=('Microsoft YaHei', 14), justify='center')
             return
         self._collect_settings()
@@ -2262,8 +2370,17 @@ class App:
         self.root.after(100, self._poll_queue)
 
 
+def _create_root():
+    """创建主窗口。优先用 tkinterdnd2.TkinterDnD.Tk（自带拖放支持，64 位稳定）。"""
+    try:
+        from tkinterdnd2 import TkinterDnD
+        return TkinterDnD.Tk()
+    except Exception:
+        return tk.Tk()
+
+
 def main():
-    root = tk.Tk()
+    root = _create_root()
     try:
         style = ttk.Style(root)
         style.theme_use('vista')
