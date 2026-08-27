@@ -632,11 +632,36 @@ class PluginSettingsWindow:
         canvas.pack(side='left', fill='both', expand=True)
         sb.pack(side='right', fill='y')
         self._fill(inner)
+        self._bind_wheel(canvas, inner)   # 补滚轮滚动（此前只能拖滚动条）
 
         bottom = ttk.Frame(self.win)
         bottom.pack(fill='x', padx=8, pady=6)
         ttk.Button(bottom, text=tr('保存'), command=self.save).pack(side='right')
         ttk.Button(bottom, text=tr('关闭'), command=self.win.destroy).pack(side='right', padx=6)
+
+    def _bind_wheel(self, canvas, inner):
+        """设置面板滚轮滚动。tkinter 的 <MouseWheel> 事件只发给鼠标悬停的控件
+        （子控件不会冒泡到 canvas），因此需对 inner 全部后代递归绑定。
+        Windows 用 <MouseWheel>(delta)，Linux 用 <Button-4/5>。"""
+
+        def _on_mw(e):
+            num = getattr(e, 'num', None)
+            delta = getattr(e, 'delta', 0)
+            if num == 4:
+                canvas.yview_scroll(-1, 'units')
+            elif num == 5:
+                canvas.yview_scroll(1, 'units')
+            elif delta:
+                canvas.yview_scroll(-1 * int(delta / 120), 'units')
+
+        def _bind(w):
+            w.bind('<MouseWheel>', _on_mw)
+            w.bind('<Button-4>', _on_mw)
+            w.bind('<Button-5>', _on_mw)
+            for c in w.winfo_children():
+                _bind(c)
+
+        _bind(inner)
 
     def _fill(self, inner):
         vals = self.parent.settings.get('plugin_values', {})
