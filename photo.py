@@ -539,24 +539,14 @@ def resolve_font(family, fonts_dir=None):
     return None
 
 # ---------------- 水印渲染 ----------------
-def _hex_to_rgb(h, default=(255, 255, 255)):
-    try:
-        h = h.lstrip('#')
-        return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-    except Exception:
-        return default
-
-# -*- coding: utf-8 -*-
-def render_watermark(img, settings, values, fonts_dir=None):
-    """在 img（PIL RGB，已按方向转正）上绘制水印，返回新图。
-    只处理水印所在的小区域（裁剪 -> 绘制 -> 贴回），避免全图合成，速度与图片总像素无关。"""
-    img = img.convert('RGB')
+def _watermark_layout(img, settings, values, fonts_dir=None):
+    """计算水印布局：返回 (bx, by, inner_w, inner_h, font, lines, line_h, padding, fs)。
+    与 render_watermark 共用，保证拖拽换算与最终渲染一致。无文本/字体时返回 None。"""
     W, H = img.size
     text = render_template(settings.get('template', ''), values)
     if not text:
-        return img
+        return None
     lines = text.split('\n')
-
     fs = max(8, int(W * settings.get('font_size_pct', 2.2) / 100))
     font = None
     for p in _font_candidates(settings.get('font_family', '微软雅黑'), fonts_dir):
@@ -566,14 +556,12 @@ def render_watermark(img, settings, values, fonts_dir=None):
         except Exception:
             continue
     if font is None:
-        # 找不到任何可用字体时用 PIL 内置位图字体兜底，避免渲染失败
         try:
             font = ImageFont.load_default()
         except Exception:
-            return img
+            return None
     ascent, descent = font.getmetrics()
     line_h = int((ascent + descent) * (1 + settings.get('line_spacing', 0.35)))
-
     widths = []
     for l in lines:
         b = font.getbbox(l)
@@ -583,7 +571,6 @@ def render_watermark(img, settings, values, fonts_dir=None):
     padding = int(fs * settings.get('bg_padding', 0.6))
     inner_w = max(1, block_w + padding * 2)
     inner_h = max(1, block_h + padding * 2)
-
     ax = settings.get('anchor', 7) % 3
     ay = settings.get('anchor', 7) // 3
     margin_x = W * settings.get('margin_pct', 3.0) / 100
@@ -602,13 +589,38 @@ def render_watermark(img, settings, values, fonts_dir=None):
         by = H - margin_y - inner_h
     bx += W * settings.get('offset_x_pct', 0.0) / 100
     by += H * settings.get('offset_y_pct', 0.0) / 100
-    # 允许通过偏移把水印推向或超出边缘（保留至少 2px 可见，避免完全移出画面）
     bx = max(-inner_w + 2, min(W - 2, bx))
     by = max(-inner_h + 2, min(H - 2, by))
-    bx = int(round(bx))
-    by = int(round(by))
-    inner_w = int(round(inner_w))
-    inner_h = int(round(inner_h))
+    return (int(round(bx)), int(round(by)), int(round(inner_w)), int(round(inner_h)),
+            font, lines, line_h, padding, fs)
+
+
+def watermark_rect(img, settings, values, fonts_dir=None):
+    """返回水印矩形 (x0, y0, x1, y1)（图像坐标）；无文本/字体返回 None。"""
+    r = _watermark_layout(img, settings, values, fonts_dir)
+    if r is None:
+        return None
+    bx, by, inner_w, inner_h = r[:4]
+    return (bx, by, bx + inner_w, by + inner_h)
+
+
+
+def _hex_to_rgb(h, default=(255, 255, 255)):
+    try:
+        h = h.lstrip('#')
+        return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+    except Exception:
+        return default
+
+# -*- coding: utf-8 -*-
+def render_watermark(img, settings, values, fonts_dir=None):
+    """在 img（PIL RGB，已按方向转正）上绘制水印，返回新图。
+    只处理水印所在的小区域（裁剪 -> 绘制 -> 贴回），避免全图合成，速度与图片总像素无关。"""
+    img = img.convert('RGB')
+    r = _watermark_layout(img, settings, values, fonts_dir)
+    if r is None:
+        return img
+    bx, by, inner_w, inner_h, font, lines, line_h, padding, fs = r
 
     # 只处理水印区域
     patch = img.crop((bx, by, bx + inner_w, by + inner_h)).convert('RGBA')

@@ -982,6 +982,10 @@ class App:
         self.compare_btn.bind('<ButtonRelease-1>', lambda e: self._set_compare(False))
         self.canvas = tk.Canvas(right, bg='#111', highlightthickness=0)
         self.canvas.pack(fill='both', expand=True)
+        self.canvas.bind('<ButtonPress-1>', self._wm_press)
+        self.canvas.bind('<B1-Motion>', self._wm_drag)
+        self.canvas.bind('<ButtonRelease-1>', self._wm_release)
+        self._dragging = False
         self.meta_var = tk.StringVar(value='')
         ttk.Label(right, textvariable=self.meta_var, foreground='#555').pack(fill='x')
 
@@ -1823,6 +1827,62 @@ class App:
         self.compare_mode = bool(on)
         self._render_preview()
 
+    def _offset_for_drag(self, anchor, margin_pct, inner_w, inner_h, W, H, tx, ty):
+        """把目标水印中心 (tx,ty)（图像坐标）换算为 offset_x/y（保持 anchor 不变）。纯逻辑便于测试。"""
+        ax = anchor % 3
+        ay = anchor // 3
+        margin_x = W * margin_pct / 100
+        margin_y = H * margin_pct / 100
+        if ax == 0:
+            bx0 = margin_x
+        elif ax == 1:
+            bx0 = (W - inner_w) / 2
+        else:
+            bx0 = W - margin_x - inner_w
+        if ay == 0:
+            by0 = margin_y
+        elif ay == 1:
+            by0 = (H - inner_h) / 2
+        else:
+            by0 = H - margin_y - inner_h
+        ox = (tx - inner_w / 2 - bx0) * 100.0 / W
+        oy = (ty - inner_h / 2 - by0) * 100.0 / H
+        return (max(-20.0, min(20.0, ox)), max(-20.0, min(20.0, oy)))
+
+    def _wm_press(self, evt):
+        rect = getattr(self, '_wm_rect', None)
+        if rect and rect[0] <= evt.x <= rect[2] and rect[1] <= evt.y <= rect[3]:
+            self._dragging = True
+            self._drag_anchor = int(self.anchor_var.get())
+        else:
+            self._dragging = False
+
+    def _wm_drag(self, evt):
+        if not getattr(self, '_dragging', False):
+            return
+        disp = getattr(self, '_preview_disp', None)
+        rect = getattr(self, '_wm_rect_img', None)
+        img = getattr(self, '_current_preview_full', None)
+        if not disp or not rect or img is None:
+            return
+        _dw, _dh, scale, ox, oy = disp
+        if scale <= 0:
+            return
+        ix = (evt.x - ox) / scale
+        iy = (evt.y - oy) / scale
+        inner_w = rect[2] - rect[0]
+        inner_h = rect[3] - rect[1]
+        W, H = img.size
+        margin = float(self.settings.get('margin_pct', 3.0))
+        ox_pct, oy_pct = self._offset_for_drag(self._drag_anchor, margin, inner_w, inner_h, W, H, ix, iy)
+        self.ox_var.set(ox_pct)
+        self.oy_var.set(oy_pct)
+        self._update_labels()
+        self._on_change()
+
+    def _wm_release(self, _evt=None):
+        self._dragging = False
+
     def _render_preview(self):
         img = getattr(self, '_current_preview_full', None)
         if img is None:
@@ -1841,6 +1901,25 @@ class App:
         ch = max(120, self.canvas.winfo_height() - 10)
         scale = self._compute_preview_scale(cw, ch, out.width, out.height)
         disp = out.resize((max(1, int(out.width * scale)), max(1, int(out.height * scale))), Image.LANCZOS)
+        disp_w, disp_h = disp.size
+        ox = cw / 2 - disp_w / 2
+        oy = ch / 2 - disp_h / 2
+        self._preview_disp = (disp_w, disp_h, scale, ox, oy)
+        # 水印矩形（图像坐标 + 画布坐标），供拖拽命中检测
+        wm_img = None
+        wm_canvas = None
+        if not self.compare_mode:
+            try:
+                meta = self.photos[self.current_index]['meta']
+                r = photo.watermark_rect(img, self.settings, build_values(meta, self.settings))
+                if r:
+                    wm_img = r
+                    wm_canvas = (ox + r[0] * scale, oy + r[1] * scale, ox + r[2] * scale, oy + r[3] * scale)
+            except Exception:
+                wm_img = None
+                wm_canvas = None
+        self._wm_rect_img = wm_img
+        self._wm_rect = wm_canvas
         self.preview_img = ImageTk.PhotoImage(disp)
         self.canvas.delete('all')
         self.canvas.create_image(cw // 2, ch // 2, image=self.preview_img)
