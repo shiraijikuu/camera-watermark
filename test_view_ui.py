@@ -49,12 +49,17 @@ class FakeApp:
         self.oy_var = _Var()
         self.anchor_var = _Var(7)
         self.canvas = FakeCanvas()
+        self.zoom_var = _Var(100.0)
+        self.zoom_label = FakeLabel()
+        self._zoom_slider_guard = False
 
     # ---- 使用 App 上定义的真实方法（纯逻辑） ----
     _offset_for_drag = app.App._offset_for_drag
     _set_zoom = app.App._set_zoom
     _zoom_around = app.App._zoom_around
     _current_fit_scale = app.App._current_fit_scale
+    _sync_zoom_ui = app.App._sync_zoom_ui
+    _on_zoom_slider = app.App._on_zoom_slider
 
     def _render_preview(self):
         self.rendered += 1
@@ -65,6 +70,14 @@ class FakeApp:
     def _apply_pan(self):
         self.panned += 1
 
+
+class FakeLabel:
+    """记录 config 调用的 Label 替身。"""
+    def __init__(self):
+        self.text = ''
+    def config(self, **kw):
+        if 'text' in kw:
+            self.text = kw['text']
 
 class _Var:
     def __init__(self, v=0.0):
@@ -116,6 +129,60 @@ class TestWheelZoom(unittest.TestCase):
         a = FakeApp(img_size=(200, 100))  # fit = min(790/200, 590/100, 2) = 2.0
         app.App._on_wheel(a, SimpleNamespace(delta=120, x=400, y=300))
         self.assertEqual(a.preview_scale, 2.25)
+
+
+class TestWheelFitBoundary(unittest.TestCase):
+    def test_wheel_down_from_fit_below_min_keeps_fit(self):
+        # Bug：大图 fit < 0.25 时向下滚应保持 fit，而非反向放大到 0.25
+        a = FakeApp(img_size=(6000, 4000))  # fit = min(790/6000, 590/4000, 2) ~ 0.13
+        app.App._on_wheel(a, SimpleNamespace(delta=-120, x=400, y=300))
+        self.assertEqual(a.preview_scale, 'fit')
+
+    def test_wheel_up_from_fit_below_min_snaps_up(self):
+        a = FakeApp(img_size=(6000, 4000))  # fit ~ 0.13
+        app.App._on_wheel(a, SimpleNamespace(delta=120, x=400, y=300))
+        self.assertEqual(a.preview_scale, 0.25)  # ceil(0.13/0.25)=1 -> 0.25
+
+
+class TestZoomSlider(unittest.TestCase):
+    def test_slider_sets_zoom(self):
+        a = FakeApp()
+        app.App._on_zoom_slider(a, '150')
+        self.assertAlmostEqual(a.preview_scale, 1.5, places=6)
+
+    def test_slider_clamped_upper(self):
+        a = FakeApp()
+        app.App._on_zoom_slider(a, '500')
+        self.assertEqual(a.preview_scale, 4.0)
+
+    def test_slider_clamped_lower(self):
+        a = FakeApp()
+        app.App._on_zoom_slider(a, '10')
+        self.assertEqual(a.preview_scale, 0.25)
+
+    def test_slider_guard_ignores_programmatic_set(self):
+        a = FakeApp()
+        a._zoom_slider_guard = True
+        app.App._on_zoom_slider(a, '200')
+        self.assertEqual(a.preview_scale, 'fit')  # guard 时应被忽略
+
+    def test_zoom_syncs_slider_percent(self):
+        a = FakeApp()
+        app.App._set_zoom(a, 2.0)
+        self.assertEqual(a.zoom_var.get(), 200)
+        self.assertEqual(a.zoom_label.text, '200%')
+
+    def test_fit_syncs_slider_to_fit_pct(self):
+        a = FakeApp()
+        app.App._set_zoom(a, 'fit')
+        self.assertEqual(a.zoom_var.get(), 79)
+        self.assertEqual(a.zoom_label.text, '79%')
+
+    def test_zoom_sync_clamped_to_slider_range(self):
+        a = FakeApp(img_size=(6000, 4000))  # fit ~ 13% < 25 下限
+        app.App._set_zoom(a, 'fit')
+        self.assertEqual(a.zoom_var.get(), 25)   # 钳到滑块下限
+        self.assertEqual(a.zoom_label.text, '13%')  # 标签仍显示真实百分比
 
 
 class TestZoomAround(unittest.TestCase):

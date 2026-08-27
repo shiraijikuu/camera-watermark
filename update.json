@@ -1,6 +1,6 @@
 {
-  "version": "1.7.2",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.7.2/PhotoWatermark-v1.7.2.exe",
-  "note": "v1.7.2: Fix drag & drop (tkinterdnd2, 64-bit stable), wheel zoom back to Fit / mouse-centered, gallery highlight under themes. / 修复拖拽（tkinterdnd2 稳定）、滚轮缩放回 fit 且以鼠标为中心、主题下选中高亮。",
-  "checksum": "84cc15a57a9af5a5d293e6f4edba7e342a39d2fbb06269c094fc1254cd5bcddb"
+  "version": "1.8.0",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.8.0/PhotoWatermark-v1.8.0.exe",
+  "note": "v1.8.0: New zoom slider (25-400%) synced with wheel/buttons; fix wheel fit boundary for large photos; README build cmd bundles tkdnd. / 新增缩放滑块（与滚轮/按钮同步）；修复大图 fit 边界；README 打包命令补齐 tkdnd。",
+  "checksum": "4c153f75a5a86387e4f57f9312fe6c31a00469eac3489fc24525440c63a8547a"
 }

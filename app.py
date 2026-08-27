@@ -63,7 +63,7 @@ def _clean_pyi_env():
     父进程校验失败，报 "Failed to start embedded python interpreter!"。"""
     for _k in ('_PYI_PARENT_PROCESS_LEVEL', '_PYI_ARCHIVE_FILE', '_PYI_APPLICATION_HOME_DIR'):
         os.environ.pop(_k, None)
-APP_VERSION = '1.7.2'
+APP_VERSION = '1.8.0'
 
 # ==================== 插件系统 ====================
 class PluginAPI:
@@ -1003,6 +1003,13 @@ class App:
         ttk.Button(zoom_bar, text=tr('适应窗口'), command=lambda: self._set_zoom('fit')).pack(side='left')
         ttk.Button(zoom_bar, text='100%', command=lambda: self._set_zoom(1.0)).pack(side='left', padx=2)
         ttk.Button(zoom_bar, text='200%', command=lambda: self._set_zoom(2.0)).pack(side='left', padx=2)
+        # 缩放滑块（25%~400%，连续）+ 当前百分比（与滚轮/按钮双向同步）
+        self.zoom_var = tk.DoubleVar(value=100.0)
+        self._zoom_slider_guard = False
+        ttk.Scale(zoom_bar, from_=25, to=400, variable=self.zoom_var,
+                  command=self._on_zoom_slider).pack(side='left', padx=(10, 2))
+        self.zoom_label = ttk.Label(zoom_bar, text='100%', width=6)
+        self.zoom_label.pack(side='left')
         self.compare_btn = ttk.Button(zoom_bar, text=tr('按住对比原图'))
         self.compare_btn.pack(side='left', padx=8)
         self.compare_btn.bind('<ButtonPress-1>', lambda e: self._set_compare(True))
@@ -1952,7 +1959,39 @@ class App:
             self._pan_y = 0
         else:
             self._pan_x, self._pan_y = pan
+        self._sync_zoom_ui()
         self._render_preview()
+
+    def _sync_zoom_ui(self):
+        """把当前缩放同步到滑块与百分比标签（guard 防滑块 command 回环）。"""
+        try:
+            if self.preview_scale == 'fit':
+                pct = int(round(self._current_fit_scale() * 100))
+            else:
+                pct = int(round(float(self.preview_scale) * 100))
+            if getattr(self, '_zoom_slider_guard', False):
+                return
+            self._zoom_slider_guard = True
+            try:
+                # 滑块值钳到 25~400（fit<25% 时贴最左）；标签始终显示真实百分比
+                self.zoom_var.set(max(25, min(400, pct)))
+                self.zoom_label.config(text='%d%%' % pct)
+            finally:
+                self._zoom_slider_guard = False
+        except Exception:
+            pass
+
+    def _on_zoom_slider(self, val_str):
+        """滑块拖动：以画布中心为锚连续缩放（0.25x~4.0x）。guard 防回环。"""
+        if getattr(self, '_zoom_slider_guard', False):
+            return
+        try:
+            new = max(0.25, min(4.0, float(val_str) / 100.0))
+        except (TypeError, ValueError):
+            return
+        cw = max(120, self.canvas.winfo_width() - 10)
+        ch = max(120, self.canvas.winfo_height() - 10)
+        self._zoom_around(cw / 2, ch / 2, new)
 
     def _current_fit_scale(self):
         """当前 fit 对应的实际缩放比（画布尺寸 x 原图尺寸，上限 2x）。"""
@@ -1979,10 +2018,13 @@ class App:
                     nxt = fit + 0.25
                 new = min(4.0, nxt)
             else:
-                nxt = math.floor(fit / 0.25 + 1e-9) * 0.25
-                if nxt >= fit - 1e-6:
-                    nxt = fit - 0.25
-                new = max(0.25, nxt)
+                if fit <= 0.25 + 1e-6:
+                    new = 'fit'      # 已 ≤ 最小档：保持适应窗口，避免反向放大
+                else:
+                    nxt = math.floor(fit / 0.25 + 1e-9) * 0.25
+                    if nxt >= fit - 1e-6:
+                        nxt = fit - 0.25
+                    new = max(0.25, nxt)
         elif up:
             new = min(4.0, float(cur) + 0.25)
         else:

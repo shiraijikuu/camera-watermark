@@ -4,7 +4,7 @@
 
 **中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
-- **Version / 版本：** v1.7.2
+- **Version / 版本：** v1.8.0
 - **Author / 作者：** Shiraijikuu (GitHub)
 - **AI assistance / AI 协助：** OpenAI Codex
 - **License / 许可证：** MIT (LICENSE)
@@ -120,7 +120,7 @@ Set update_url in config.json (JSON manifest URL), click "Check for Updates" to 
 ## Build from Source / 从源码打包 exe
 
     pip install -r requirements-dev.txt
-    pyinstaller --noconfirm --clean --onefile --windowed --name "PhotoWatermark" --hidden-import "PIL._tkinter_finder" app.py
+    pyinstaller --noconfirm --clean --onefile --windowed --name "PhotoWatermark" --hidden-import "PIL._tkinter_finder" --hidden-import "windnd" --collect-all "tkinterdnd2" --version-file version_info.txt app.py
 
 Put plugins/, fonts/ and USAGE.txt next to the exe in dist/ to distribute. 把 plugins/、fonts/、USAGE.txt 等放在 dist/ 的 exe 旁边即可分发。
 
@@ -153,11 +153,11 @@ See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.m
 3. **向微软提交误报**：https://www.microsoft.com/en-us/wdsi/filesubmission （通常几天内清除）。
 4. 自行验证：源码公开（MIT），可按 RELEASE.md 从源码自行打包。
 
-## Release Notes / 更新公告（v1.7.2）
+## Release Notes / 更新公告（v1.8.0）
 
-**EN: Bug fixes.** Photo-folder drag & drop now works on 64-bit (tkinterdnd2); wheel zoom can return to Fit and is mouse-centered with smoother steps; theme no longer hides gallery selection highlight on first open.
+**EN: Zoom slider + fit fix.** New zoom slider (25–400%) synced with wheel & buttons; fixed wheel-zoom fit edge case for large photos; build docs now bundle tkdnd.
 
-**中文：修复版。** 拖拽照片文件夹在 64 位下恢复正常（tkinterdnd2）；滚轮缩放可回到「适应窗口」、以鼠标为中心、步进更平滑；主题不再覆盖预设缩略图选中高亮。
+**中文：缩放滑块 + fit 修复。** 新增缩放滑块（25%~400%）与滚轮/按钮同步；修复大图 fit 边界；打包文档补齐 tkdnd。
 
 > ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.7.0 once** — the old auto-updater cannot upgrade to this version; after installing v1.7.0, auto-update works again.
 > ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.7.0 一次** — 旧版自动更新无法升级到本版；安装 v1.7.0 后自动更新恢复正常。

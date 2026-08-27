@@ -16,3 +16,4 @@ _stage-dist/
 _plugin_tmp/
 _testplugins/
 pwm.log
+*.spec
