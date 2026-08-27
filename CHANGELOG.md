@@ -8,6 +8,20 @@
 
 ---
 
+## [1.6.0] - 2026-08-27
+
+### 修复
+- 修复语言切换重启报错 "Failed to start embedded python interpreter!"：
+  重启前未清除 PyInstaller onefile 运行时环境变量（_PYI_*），新 exe 被引导器误判为子进程。
+  已抽公共函数 _clean_pyi_env()，热更新与重启共用，避免再漏。
+
+### 新增
+- 插件系统新增 api.on_window_created(func) 扩展点：动态 Toplevel（插件设置/管理/商店等）
+  创建完成后把窗口交给插件（如给新窗口上主题色）。
+- theme-switcher 插件升级适配：动态窗口也随主题变色。
+
+---
+
 ## [1.5.0] - 2026-08-27
 
 ### 新增（UI 改版）

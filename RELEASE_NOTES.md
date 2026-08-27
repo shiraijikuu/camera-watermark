@@ -1,14 +1,11 @@
-# 📢 Photo Watermark v1.5.0 — Release Notes / 更新公告
+# 📢 Photo Watermark v1.6.0 — Release Notes / 更新公告
 
-**EN:** Big UI update! Photo list now supports search / sort / filter / thumbnails; preview supports zoom (fit/100%/200%) and hold-to-compare the original; you can drag the watermark directly on the preview to position it; export shows per-file progress and a result summary; an empty-state guide appears when no photos are loaded.
+**EN:** Fixed "Failed to start embedded python interpreter!" when switching language (PyInstaller env vars now cleared before relaunch). New plugin extension point `api.on_window_created(func)` — dynamic windows (plugin settings / manager / store) are handed to plugins after creation, so themes adapt new windows automatically.
 
-**中文：** 界面大改版！照片列表支持搜索/排序/筛选/缩略图；预览支持缩放（适应窗口/100%/200%）和按住对比原图；可以直接在预览画布上拖拽水印定位；导出显示逐文件进度和结果汇总；未加载照片时显示操作引导。
+**中文：** 修复切换语言时重启报错 "Failed to start embedded python interpreter!"（重启前已清除 PyInstaller 环境变量）。新增插件扩展点 `api.on_window_created(func)`——动态窗口（插件设置/管理/商店）创建完成后交给插件，主题可自动适配新窗口。
 
-## What's New / 新增
-- List: search / sort / filter / lazy thumbnails / 列表：搜索 / 排序 / 筛选 / 懒加载缩略图
-- Preview: zoom + hold-to-compare / 预览：缩放 + 按住对比原图
-- Drag watermark on canvas to position (syncs 9-grid + offsets) / 画布拖拽水印定位
-- Export: per-file progress + result summary / 导出：逐文件进度 + 结果汇总
-- Empty-state guide / 空状态引导
+## What's Fixed / What's New
+- Fix language-switch relaunch crash / 修复语言切换重启崩溃
+- New plugin extension point: on_window_created / 新增插件扩展点 on_window_created
 
 See CHANGELOG.md / 详见 CHANGELOG.md。
