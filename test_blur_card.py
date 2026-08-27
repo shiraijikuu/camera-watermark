@@ -44,6 +44,15 @@ class TestStyleRegisterCompat(unittest.TestCase):
         self.api.add_watermark_style('blur', '模糊卡片', lambda *a: None, replaces_watermark=True)
         self.assertIs(self.api.styles['blur'][2], True)
 
+    def test_rect_func_stored(self):
+        # 旧 3 参调用 rect_func=None；新 5 参（rect_func）存储可调用
+        self.api.add_watermark_style('img', '图片水印', lambda *a: None)
+        self.api.add_watermark_style('blur', '模糊卡片', lambda *a: None,
+                                     replaces_watermark=True, rect_func=lambda *a: (0, 0, 10, 10))
+        self.assertIsNone(self.api.style_rects['img'])
+        self.assertIsNotNone(self.api.style_rects['blur'])
+        self.assertTrue(callable(self.api.style_rects['blur']))
+
     def test_stored_tuple_length_three(self):
         # 旧插件 3 参调用也存三元组，_render_with_style 解包不崩溃
         self.api.add_watermark_style('img', '图片水印', lambda *a: None)
@@ -211,6 +220,22 @@ class TestBlurCardPlugin(unittest.TestCase):
             _app.PLUGIN_API.setting_specs = _orig_specs
             _app.PLUGIN_API.styles = _orig_styles
             _app._rebuild_plugin_settings()
+
+    def test_text_moves_with_offset(self):
+        # blur-card 文字信息栏随 offset_x_pct/offset_y_pct 平移（与 _blur_card_rect 一致）
+        img = Image.new('RGB', (800, 600), (0, 0, 0))
+        base_s = {'template': 'X', 'font_family': '',
+                  'plugin_values': {'blur-card': {'blur_card_ratio': '16:9',
+                                                  'blur_card_outline': False,
+                                                  'blur_card_shadow': False}}}
+        r0 = self.mod._blur_card_rect(dict(base_s, offset_x_pct=0, offset_y_pct=0),
+                                      {'make': 'S'}, img.size)
+        r5 = self.mod._blur_card_rect(dict(base_s, offset_x_pct=5, offset_y_pct=10),
+                                      {'make': 'S'}, img.size)
+        self.assertIsNotNone(r0)
+        self.assertIsNotNone(r5)
+        self.assertEqual(r5[0] - r0[0], int(0.05 * 800))
+        self.assertEqual(r5[1] - r0[1], int(0.10 * 600))
 
     def test_fit_font_no_overflow(self):
         # 超长模板自动缩字号，不溢出信息栏（文字 bbox 在画布内）

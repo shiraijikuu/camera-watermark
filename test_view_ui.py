@@ -420,6 +420,60 @@ class TestPanResyncAfterRerender(unittest.TestCase):
         self.assertAlmostEqual(a._pan_x, 10.0, places=6)
 
 
+class TestPluginIncrementalDrag(unittest.TestCase):
+    """插件样式（有 rect_func）文字水印走增量拖拽：从按下点算增量、跟随鼠标、边界约束。"""
+    def _setup(self, rect=(100, 50, 300, 150)):
+        a = FakeApp()
+        a._preview_disp = (400, 300, 0.5, 200.0, 150.0)
+        a._wm_rect_img = rect
+        a._current_preview_full = Image.new('RGB', (1000, 600), (255, 255, 255))
+        a.settings['style'] = 'blur_card'
+        a.settings['offset_x_pct'] = 0.0
+        a.settings['offset_y_pct'] = 0.0
+        a._drag_mode = 'watermark'
+        a._drag_img_start = (200, 100)     # 按下点（rect 中心）
+        a._drag_offset_start = (0.0, 0.0)
+        return a
+
+    def tearDown(self):
+        app.PLUGIN_API.style_rects = {}
+
+    def test_incremental_follows_mouse(self):
+        app.PLUGIN_API.style_rects['blur_card'] = lambda *a: (100, 50, 300, 150)
+        a = self._setup()
+        # 鼠标移到图像坐标 (250, 125)：画布 x = 200 + 250*0.5 = 325, y = 150 + 125*0.5 = 212.5
+        app.App._wm_drag(a, SimpleNamespace(x=325, y=212.5))
+        self.assertAlmostEqual(a.settings['offset_x_pct'], 5.0, places=6)
+        self.assertAlmostEqual(a.settings['offset_y_pct'], 25.0 / 600.0 * 100.0, places=6)
+
+    def test_incremental_clamped_to_bounds(self):
+        app.PLUGIN_API.style_rects['blur_card'] = lambda *a: (100, 50, 300, 150)
+        a = self._setup()
+        # 鼠标拖到图像坐标 (99999, -99999) -> 画布坐标巨大 -> offset 被钳到边界
+        app.App._wm_drag(a, SimpleNamespace(x=200 + 99999 * 0.5, y=150 + (-99999) * 0.5))
+        ox = a.settings['offset_x_pct']
+        oy = a.settings['offset_y_pct']
+        # 边界：rect 中心 (200,100)，inner (200,100)，margin 5% (50,30)
+        max_tx = 1000 - 50 - 100          # margin_x + inner_w/2 起，到 W-margin-inner/2
+        min_tx = 50 + 100
+        max_ty = 600 - 30 - 50
+        min_ty = 30 + 50
+        cx = 200 + ox / 100.0 * 1000
+        cy = 100 + oy / 100.0 * 600
+        self.assertLessEqual(cx, max_tx + 0.5)
+        self.assertGreaterEqual(cx, min_tx - 0.5)
+        self.assertLessEqual(cy, max_ty + 0.5)
+        self.assertGreaterEqual(cy, min_ty - 0.5)
+
+    def test_no_rect_func_uses_default_path(self):
+        # 无 rect_func 的样式：走 _offset_for_drag（动态边界）
+        a = self._setup()
+        app.PLUGIN_API.style_rects['blur_card'] = None
+        a._drag_anchor = 4
+        app.App._wm_drag(a, SimpleNamespace(x=325, y=212.5))
+        self.assertNotEqual(a.settings['offset_x_pct'], 0.0)
+
+
 class TestApplyPan(unittest.TestCase):
     def test_apply_pan_moves_item_and_rect(self):
         a = FakeApp()

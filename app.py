@@ -73,6 +73,7 @@ class PluginAPI:
         self.camera_names = []    # [(make, model, friendly)]
         self.presets = {}         # name -> template（模板预设）
         self.styles = {}          # name -> (label, renderer)（自定义水印样式）
+        self.style_rects = {}     # name -> func(settings, values, size) -> rect|None（插件文字水印矩形）
         self.export_hooks = []    # [func(img, meta, settings) -> img|None]（导出前处理）
         self.setting_specs = []   # [(plugin_name, key, spec)]（插件设置项）
         self.ui_ready_hooks = []  # [func(app)] 主界面构建完成后回调，插件可向界面添加任意控件
@@ -101,17 +102,21 @@ class PluginAPI:
         if name and isinstance(template, str):
             self.presets[name] = template
 
-    def add_watermark_style(self, name, label, renderer, replaces_watermark=False):
+    def add_watermark_style(self, name, label, renderer, replaces_watermark=False, rect_func=None):
         """新增水印样式。
         renderer(img, settings, values, source=None) 返回绘制后的 PIL 图像。
           - replaces_watermark=False（默认）：兼容型。先画默认文字水印，
             renderer 在带文字水印的图上叠加（图片水印插件即此类，行为不变）。
           - replaces_watermark=True：整图重绘型。跳过默认文字水印，
             renderer 直接收到无水印原图，水印由插件全权绘制（模糊卡片即此类）。
-        兼容旧插件：3 参调用时 replaces 默认 False，行为不变。"""
+          - rect_func(settings, values, size) -> (x0,y0,x1,y1)|None 可选：返回该样式
+            文字水印矩形（图像坐标，应含当前 offset），供主程序拖拽命中检测；
+            未提供时主程序回退 photo.watermark_rect（默认文字水印布局）。
+        兼容旧插件：3 参调用时 replaces 默认 False、rect_func 缺省 None，行为不变。"""
         if name and callable(renderer):
             # 关键：统一存三元组，避免旧插件二元组导致 _render_with_style 解包崩溃
             self.styles[name] = (label, renderer, bool(replaces_watermark))
+            self.style_rects[name] = rect_func if callable(rect_func) else None
 
     def on_export(self, func):
         """导出钩子：水印绘制后、保存前调用 func(img, meta, settings)，可返回修改后的图像。"""
@@ -2258,7 +2263,9 @@ class App:
         self._render_preview()
 
     def _offset_for_drag(self, anchor, margin_pct, inner_w, inner_h, W, H, tx, ty):
-        """把目标水印中心 (tx,ty)（图像坐标）换算为 offset_x/y（保持 anchor 不变）。纯逻辑便于测试。"""
+        """把目标水印中心 (tx,ty)（图像坐标）换算为 offset_x/y（保持 anchor 不变）。纯逻辑便于测试。
+        offset 可达范围按实际画面边界动态计算：水印中心可到 [margin+inner/2, 尺寸-margin-inner/2]，
+        能拖到贴边且不超界（替代旧的固定 ±20 截断——多行水印贴边需要更大的 offset）。"""
         ax = anchor % 3
         ay = anchor // 3
         margin_x = W * margin_pct / 100
@@ -2277,7 +2284,20 @@ class App:
             by0 = H - margin_y - inner_h
         ox = (tx - inner_w / 2 - bx0) * 100.0 / W
         oy = (ty - inner_h / 2 - by0) * 100.0 / H
-        return (max(-20.0, min(20.0, ox)), max(-20.0, min(20.0, oy)))
+        # 动态边界：中心可达 [margin+inner/2, 尺寸-margin-inner/2]
+        min_ox = (margin_x - bx0) * 100.0 / W
+        max_ox = (W - margin_x - inner_w - bx0) * 100.0 / W
+        min_oy = (margin_y - by0) * 100.0 / H
+        max_oy = (H - margin_y - inner_h - by0) * 100.0 / H
+        if max_ox >= min_ox:
+            ox = max(min_ox, min(max_ox, ox))
+        else:   # 水印比可用空间大：居中
+            ox = (min_ox + max_ox) / 2
+        if max_oy >= min_oy:
+            oy = max(min_oy, min(max_oy, oy))
+        else:
+            oy = (min_oy + max_oy) / 2
+        return (ox, oy)
 
     def _wm_press(self, evt):
         rect = getattr(self, '_wm_rect', None)
@@ -2285,6 +2305,18 @@ class App:
             # hit watermark -> drag watermark
             self._drag_mode = 'watermark'
             self._drag_anchor = int(self.anchor_var.get())
+            # 记录拖拽起点（图像坐标）+ 起始 offset，供插件样式增量换算
+            disp = getattr(self, '_preview_disp', None)
+            img = getattr(self, '_current_preview_full', None)
+            if disp and img:
+                _dw, _dh, scale, ox, oy = disp
+                if scale > 0:
+                    vx = getattr(self, '_view_x', 0)
+                    vy = getattr(self, '_view_y', 0)
+                    self._drag_img_start = (vx + (evt.x - ox) / scale,
+                                            vy + (evt.y - oy) / scale)
+            self._drag_offset_start = (float(self.settings.get('offset_x_pct', 0.0)),
+                                       float(self.settings.get('offset_y_pct', 0.0)))
         else:
             # not on watermark -> pan canvas (reposition after zoom)
             self._drag_mode = 'pan'
@@ -2323,7 +2355,34 @@ class App:
             inner_h = rect[3] - rect[1]
             W, H = img.size
             margin = float(self.settings.get('margin_pct', 3.0))
-            ox_pct, oy_pct = self._offset_for_drag(self._drag_anchor, margin, inner_w, inner_h, W, H, ix, iy)
+            style = self.settings.get('style', 'default')
+            if PLUGIN_API.style_rects.get(style):
+                # 插件样式：增量拖拽（从按下位置算增量，跟随鼠标），再按边界约束
+                six, siy = getattr(self, '_drag_img_start', (ix, iy))
+                sox, soy = getattr(self, '_drag_offset_start', (0.0, 0.0))
+                ox_pct = sox + (ix - six) * 100.0 / W
+                oy_pct = soy + (iy - siy) * 100.0 / H
+                # 边界：当前矩形中心可达范围 = [margin+inner/2, 尺寸-margin-inner/2]
+                cx = (rect[0] + rect[2]) / 2
+                cy = (rect[1] + rect[3]) / 2
+                margin_x = W * margin / 100
+                margin_y = H * margin / 100
+                min_tx = margin_x + inner_w / 2
+                max_tx = W - margin_x - inner_w / 2
+                min_ty = margin_y + inner_h / 2
+                max_ty = H - margin_y - inner_h / 2
+                tx = cx + (ox_pct - sox) / 100.0 * W
+                ty = cy + (oy_pct - soy) / 100.0 * H
+                if max_tx > min_tx:
+                    tx = max(min_tx, min(max_tx, tx))
+                if max_ty > min_ty:
+                    ty = max(min_ty, min(max_ty, ty))
+                ox_pct = sox + (tx - cx) / W * 100.0
+                oy_pct = soy + (ty - cy) / H * 100.0
+            else:
+                # 默认样式：原换算（_offset_for_drag 已改动态边界）
+                ox_pct, oy_pct = self._offset_for_drag(self._drag_anchor, margin,
+                                                       inner_w, inner_h, W, H, ix, iy)
             self.ox_var.set(ox_pct)
             self.oy_var.set(oy_pct)
             self.settings['offset_x_pct'] = ox_pct
@@ -2433,7 +2492,12 @@ class App:
         if not self.compare_mode:
             try:
                 meta = self.photos[self.current_index]['meta']
-                r = photo.watermark_rect(img, self.settings, build_values(meta, self.settings))
+                values = build_values(meta, self.settings)
+                rectf = PLUGIN_API.style_rects.get(self.settings.get('style', 'default'))
+                if rectf:
+                    r = rectf(self.settings, values, img.size)   # 插件声明的文字水印矩形（含 offset）
+                else:
+                    r = photo.watermark_rect(img, self.settings, values)
                 if r:
                     wm_img = r
                     wm_canvas = (ox + (r[0] - vx) * scale, oy + (r[1] - vy) * scale,

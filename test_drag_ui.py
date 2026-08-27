@@ -93,10 +93,42 @@ class TestOffsetForDrag(unittest.TestCase):
         self.assertAlmostEqual(cx, target[0], delta=6.0)
         self.assertAlmostEqual(cy, target[1], delta=6.0)
 
-    def test_offset_clamped(self):
+    def test_offset_clamped_to_dynamic_boundary(self):
+        # 动态边界：极端拖拽被钳到实际可达范围（不再是固定 ±20）
         ox, oy = app.App._offset_for_drag(None, 7, 5.0, 200, 60, 1000, 600, 99999, -99999)
-        self.assertLessEqual(abs(ox), 20.0)
-        self.assertLessEqual(abs(oy), 20.0)
+        # anchor=7: bx0=(1000-200)/2=400, by0=600-30-60=510
+        # max_ox=(1000-50-200-400)*100/1000=35; min_oy=(30-510)*100/600=-80
+        self.assertAlmostEqual(ox, 35.0, places=6)
+        self.assertAlmostEqual(oy, -80.0, places=6)
+
+    def test_offset_reaches_boundary_multi_line(self):
+        # 多行（两层）水印拖到贴边：offset 不再被 ±20 截断，能到边界
+        W, H = 1000, 700
+        inner_w, inner_h = 220, 140
+        tx = W - W * 0.03 - inner_w / 2      # 贴右下边
+        ty = H - H * 0.03 - inner_h / 2
+        ox, oy = app.App._offset_for_drag(None, 4, 3.0, inner_w, inner_h, W, H, tx, ty)
+        self.assertGreater(ox, 20.0)         # 超过旧 ±20 截断（应 ~36）
+        self.assertGreater(oy, 20.0)
+        # 反推中心应贴近目标（贴边）
+        bx0 = (W - inner_w) / 2
+        by0 = (H - inner_h) / 2
+        cx = bx0 + inner_w / 2 + ox / 100.0 * W
+        cy = by0 + inner_h / 2 + oy / 100.0 * H
+        self.assertAlmostEqual(cx, tx, delta=1.0)
+        self.assertAlmostEqual(cy, ty, delta=1.0)
+
+    def test_offset_stays_in_bounds(self):
+        # 极端拖拽不超界：中心不越过 margin 边界
+        W, H = 1000, 700
+        inner_w, inner_h = 100, 40
+        ox, oy = app.App._offset_for_drag(None, 7, 3.0, inner_w, inner_h, W, H, 99999, -99999)
+        bx0 = (W - inner_w) / 2
+        by0 = H - 3.0 * H / 100 - inner_h
+        cx = bx0 + inner_w / 2 + ox / 100.0 * W
+        cy = by0 + inner_h / 2 + oy / 100.0 * H
+        self.assertLessEqual(cx, W - W * 0.03 - inner_w / 2 + 0.5)   # 不超右边界
+        self.assertGreaterEqual(cy, H * 0.03 + inner_h / 2 - 0.5)    # 不低于上边界
 
 
 if __name__ == "__main__":
