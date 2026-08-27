@@ -4,19 +4,20 @@
     {
       "id": "image-watermark",
       "name": "Image Watermark",
-      "description": "自定义图片水印（PNG/JPG/GIF），支持大小/位置/旋转/透明度，RAW 自动跳过",
+      "description": "自定义图片水印（PNG/JPG/GIF）+ 10 个相机品牌 logo 预设，支持大小/位置/旋转/透明度，RAW 自动跳过",
       "author": "shiraijikuu",
       "repo": "shiraijikuu/PhotoWatermark-image-watermark",
       "license": "MIT",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "tags": [
         "watermark",
         "image",
-        "gif"
+        "gif",
+        "logo"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.0.0/PhotoWatermark-image-watermark-v1.0.0.zip",
-      "checksum": "4bc1d945d2f4198806b58f9415e5819f131886c32ff7b4b71a97fa5d356d369e",
-      "updated_at": "2026-08-25"
+      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.1.0/PhotoWatermark-image-watermark-v1.1.0.zip",
+      "checksum": "a958f8bfd723a7b87e3ec75be4abf628e2fc69fe75a353ab34445bc4072c7522",
+      "updated_at": "2026-08-28"
     },
     {
       "id": "theme-switcher",
@@ -35,6 +36,24 @@
       "install_url": "https://github.com/shiraijikuu/PhotoWatermark-theme-switcher/releases/download/v1.0.4/PhotoWatermark-theme-switcher-v1.0.4.zip",
       "checksum": "9f228e0e0da2a54898b5504bd4ffdcbfd83b148b34a3be6115cb97945412c9dc",
       "updated_at": "2026-08-27"
+    },
+    {
+      "id": "blur-card",
+      "name": "Blur Card",
+      "description": "模糊卡片水印样式：模糊深色背景 + 清晰前景 + 底部相机参数信息栏（需主程序 >= 2.0.0）",
+      "author": "shiraijikuu",
+      "repo": "shiraijikuu/PhotoWatermark-blur-card",
+      "license": "MIT",
+      "version": "1.0.0",
+      "tags": [
+        "watermark",
+        "style",
+        "blur",
+        "card"
+      ],
+      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-blur-card/releases/download/v1.0.0/PhotoWatermark-blur-card-v1.0.0.zip",
+      "checksum": "87984f76fceb72969d34f7f2184e2e72eeaed6d5fddcf50a1f8d45e80d43344e",
+      "updated_at": "2026-08-28"
     }
   ]
 }

@@ -13,3 +13,4 @@ then restart the app. See PLUGINS.md for the plugin API.
 |---------------|-------------------|--------------------|
 | image-watermark | [PhotoWatermark-image-watermark](https://github.com/shiraijikuu/PhotoWatermark-image-watermark) | Custom image watermark (PNG/JPG/GIF), size/position/rotation/opacity, skips RAW / 自定义图片水印 |
 | theme-switcher | [PhotoWatermark-theme-switcher](https://github.com/shiraijikuu/PhotoWatermark-theme-switcher) | Theme switching: dark / light / follow system / 主题切换：黑夜 / 白天 / 跟随系统 |
+| blur-card | [PhotoWatermark-blur-card](https://github.com/shiraijikuu/PhotoWatermark-blur-card) | Blur Card style: blurred bg + clear photo + camera info bar (needs PWM >= 2.0.0) / 模糊卡片样式：模糊背景+清晰照片+相机信息栏（需主程序 >= 2.0.0） |
