@@ -661,8 +661,10 @@ class PluginSettingsWindow:
             selected = (it is item)
             bg = '#3b82f6' if selected else '#2a2d3a'
             t.config(bg=bg)
+            t._wm_keep_bg = True  # 标记：主题插件应保留此手动背景（选中态蓝色）
             for ch in t.winfo_children():
                 ch.config(bg=bg)
+                ch._wm_keep_bg = True
         lbl = str(item.get('label', ''))
         val = '' if not item.get('image') else lbl
         self.parent.settings.setdefault('plugin_values', {}).setdefault(pname, {})[key] = val
@@ -926,6 +928,7 @@ class App:
         self._on_change()
         self.root.after(100, self._poll_queue)
         self._notify_ui_ready()
+        self._setup_drop()
 
     # ---------- UI 构建 ----------
     def _build_ui(self):
@@ -1510,14 +1513,46 @@ class App:
             except Exception as e:
                 _log('插件 UI 初始化失败: %s' % e)
 
+    def _setup_drop(self):
+        """启用拖拽文件夹到主窗口即可扫描（Windows，经 windnd）。"""
+        try:
+            import windnd
+            windnd.hook_dropfiles(self.root, func=self._on_drop)
+        except Exception as e:
+            _log('拖拽支持初始化失败: %s' % e)
+
+    def _on_drop(self, *paths):
+        folder = self._resolve_drop_folder(paths)
+        if folder:
+            self._start_scan(folder)
+
+    def _resolve_drop_folder(self, paths):
+        """从拖入路径中解析要扫描的文件夹（纯逻辑，便于测试）。"""
+        for p in paths or []:
+            if not p:
+                continue
+            p = str(p).strip('\"').strip()
+            if os.path.isdir(p):
+                return p
+            if os.path.isfile(p):
+                return os.path.dirname(p)
+        return None
+
     def _notify_window_created(self, win):
         """动态 Toplevel（插件设置/管理/商店等）创建完成后，把窗口交给注册了
-        on_window_created 的插件（如上色）。单个插件异常不阻断其余插件。"""
-        for hook in list(PLUGIN_API.window_created_hooks):
-            try:
-                hook(win)
-            except Exception as e:
-                _log('插件窗口初始化失败: %s' % e)
+        on_window_created 的插件（如上色）。单个插件异常不阻断其余插件。
+        用 after(0) 延迟到 __init__ 返回、窗口内容（_build 等）创建完成后再通知，
+        避免窗口还是空壳时就上色（否则内部控件残留默认白底）。"""
+        def _dispatch():
+            for hook in list(PLUGIN_API.window_created_hooks):
+                try:
+                    hook(win)
+                except Exception as e:
+                    _log('插件窗口初始化失败: %s' % e)
+        try:
+            win.after(0, _dispatch)
+        except Exception:
+            _dispatch()
 
     # ---------- 语言切换 ----------
     def _on_language_change(self, _evt=None):

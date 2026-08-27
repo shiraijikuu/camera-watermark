@@ -77,5 +77,56 @@ class TestOnWindowCreated(unittest.TestCase):
         self.assertIn('boom', self.logged[0])
 
 
+class TestNotifyDeferred(unittest.TestCase):
+    def setUp(self):
+        self._orig = app.PLUGIN_API.window_created_hooks
+        self._orig_log = app._log
+        app.PLUGIN_API.window_created_hooks = []
+        self.logged = []
+        app._log = lambda msg: self.logged.append(str(msg))
+        self.addCleanup(setattr, app.PLUGIN_API, "window_created_hooks", self._orig)
+        self.addCleanup(setattr, app, "_log", self._orig_log)
+
+    def test_deferred_until_after(self):
+        # 通知不应同步触发，而应等 win.after 回调执行
+        received = []
+        app.PLUGIN_API.window_created_hooks.append(lambda win: received.append(win))
+
+        class FakeWin:
+            def __init__(self):
+                self.cbs = []
+            def after(self, ms, cb):
+                self.cbs.append(cb)
+
+        win = FakeWin()
+        app.App._notify_window_created(object(), win)
+        self.assertEqual(received, [], "回调不应在 after 前同步执行")
+        for cb in win.cbs:
+            cb()
+        self.assertEqual(received, [win])
+
+    def test_fallback_when_no_after(self):
+        received = []
+        app.PLUGIN_API.window_created_hooks.append(lambda win: received.append(win))
+        win = object()  # 没有 after 方法 -> 走同步兜底
+        app.App._notify_window_created(object(), win)
+        self.assertEqual(received, [win])
+
+    def test_deferred_exception_still_isolated(self):
+        seen = []
+        def boom(win):
+            raise RuntimeError('boom')
+        def record(win):
+            seen.append('ok')
+        app.PLUGIN_API.window_created_hooks.extend([boom, record])
+
+        class FakeWin:
+            def after(self, ms, cb):
+                cb()
+
+        app.App._notify_window_created(object(), FakeWin())
+        self.assertEqual(seen, ['ok'])
+        self.assertEqual(len(self.logged), 1)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
