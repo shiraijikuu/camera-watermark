@@ -18,7 +18,7 @@ import time
 import tkinter as tk
 from tkinter import ttk, filedialog, colorchooser, messagebox
 
-from PIL import Image, ImageTk, ImageOps
+from PIL import Image, ImageTk, ImageOps, ImageEnhance   # ImageEnhance 供插件宿主使用（打包需含）
 import photo
 from lang import tr, LANGS, set_lang, get_lang
 
