@@ -131,7 +131,7 @@ class TestBlurCardPlugin(unittest.TestCase):
     def test_settings_read_from_plugin_values(self):
         # 插件设置经 plugin_values['blur_card'] 传入（与主程序一致）
         img = Image.new('RGB', (800, 600), (60, 60, 60))
-        s = {'template': 'X', 'plugin_values': {'blur_card': {'blur_card_fg_scale': 50}}}
+        s = {'template': 'X', 'plugin_values': {'blur-card': {'blur_card_fg_scale': 50}}}
         out = self.mod._render(img, s, {'make': ''}, source=img)
         self.assertEqual(out.size, (800, 600))
 
