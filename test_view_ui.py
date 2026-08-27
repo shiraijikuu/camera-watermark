@@ -64,6 +64,7 @@ class FakeApp:
     _current_fit_scale = app.App._current_fit_scale
     _sync_zoom_ui = app.App._sync_zoom_ui
     _on_zoom_slider = app.App._on_zoom_slider
+    _apply_pan = app.App._apply_pan
 
     def _render_preview(self):
         self.rendered += 1
@@ -72,9 +73,6 @@ class FakeApp:
 
     def _update_labels(self):
         pass
-
-    def _apply_pan(self):
-        self.panned += 1
 
 
 class FakeLabel:
@@ -309,7 +307,7 @@ class TestPanDrag(unittest.TestCase):
         a._pan_start = (0, 0)
         app.App._wm_drag(a, SimpleNamespace(x=150, y=130))
         self.assertEqual((a._pan_x, a._pan_y), (50, 30))
-        self.assertEqual(a.panned, 1)
+        self.assertGreater(a.rendered, 0)   # 无 item 时 _apply_pan 回退渲染
 
     def test_pan_drag_relative_to_start(self):
         a = FakeApp()
@@ -324,7 +322,7 @@ class TestPanDrag(unittest.TestCase):
         a._drag_mode = 'pan'
         app.App._wm_release(a)
         self.assertIsNone(a._drag_mode)
-        self.assertEqual(a.panned, 1)
+        self.assertGreater(a.rendered, 0)
 
 
 class TestWatermarkDrag(unittest.TestCase):
@@ -356,6 +354,70 @@ class TestWatermarkDrag(unittest.TestCase):
         a._drag_mode = None
         app.App._wm_drag(a, SimpleNamespace(x=250, y=200))
         self.assertEqual(a.settings['offset_x_pct'], 0.0)
+
+
+class TestPanBufferWindow(unittest.TestCase):
+    def test_pan_beyond_buffer_moves_view_same_direction(self):
+        # 放大钳制模式：拖拽左移（pan_x<0）超缓冲 -> 窗口应右移（vx 增大）保持视觉连续
+        a = FakeApp()
+        a._preview_disp = (500, 300, 0.5, 100.0, 100.0)
+        a._view_x, a._view_y = 100.0, 50.0
+        a._pan_x, a._pan_y = -500.0, 0.0
+        a._preview_item = 'IMG'
+        a._preview_origin = (145.0, 145.0)
+        app.App._apply_pan(a)
+        # vx_new = 100 - (-500)/0.5 = 1100（窗口右移，与拖拽同向）；pan 重置为 0
+        self.assertAlmostEqual(a._view_x, 1100.0, places=4)
+        self.assertAlmostEqual(a._pan_x, 0.0, places=4)
+        self.assertGreater(a.rendered, 0)   # 已触发缓冲重渲染
+
+    def test_pan_within_buffer_keeps_window(self):
+        # 缓冲内平移：item 移动、窗口不动、不重渲染
+        a = FakeApp()
+        # 渲染图 1000x700 覆盖画布 790x590（ox=-100 左伸，ox+disp_w=900>790）
+        a._preview_disp = (1000, 700, 0.5, -100.0, -50.0)
+        a._view_x, a._view_y = 100.0, 50.0
+        a._pan_x, a._pan_y = 0.0, 0.0
+        a._preview_item = 'IMG'
+        a._preview_origin = (-100.0, -50.0)
+        app.App._apply_pan(a)
+        self.assertAlmostEqual(a._view_x, 100.0, places=4)   # 窗口不动
+        self.assertEqual(a.rendered, 0)                       # 不重渲染
+
+
+class TestPanResyncAfterRerender(unittest.TestCase):
+    def test_drag_continues_smoothly_after_buffer_rerender(self):
+        a = FakeApp()
+        a._preview_disp = (1000, 700, 0.5, -100.0, -50.0)   # 渲染图覆盖画布
+        a._preview_origin = (-100.0, -50.0)
+        a._view_x, a._view_y = 100.0, 50.0
+        a._preview_item = 'IMG'
+        a._drag_mode = 'pan'
+        a._drag_start = (100, 100)
+        a._pan_start = (0, 0)
+        # 第一次大拖拽：触发缓冲重渲染
+        app.App._wm_drag(a, SimpleNamespace(x=700, y=100))
+        self.assertEqual(a._pan_x, 0)                 # 重渲染后 pan 归零
+        self.assertEqual(a._drag_start, (700, 100))   # 起点同步到当前鼠标
+        # 继续小拖拽（手指 700->710）：pan 应只加 10，不跳跃
+        app.App._wm_drag(a, SimpleNamespace(x=710, y=100))
+        self.assertAlmostEqual(a._pan_x, 10.0, places=6)
+        self.assertAlmostEqual(a._pan_y, 0.0, places=6)
+
+    def test_drag_after_rerender_does_not_accumulate_old_offset(self):
+        # 若起点未同步，第二次拖拽会用旧起点(100)算 pan=610，导致跳跃；此处验证已同步
+        a = FakeApp()
+        a._preview_disp = (1000, 700, 0.5, -100.0, -50.0)
+        a._preview_origin = (-100.0, -50.0)
+        a._view_x, a._view_y = 100.0, 50.0
+        a._preview_item = 'IMG'
+        a._drag_mode = 'pan'
+        a._drag_start = (100, 100)
+        a._pan_start = (0, 0)
+        app.App._wm_drag(a, SimpleNamespace(x=700, y=100))   # 触发重渲染
+        app.App._wm_drag(a, SimpleNamespace(x=710, y=100))
+        # 关键断言：连续拖拽总位移只反映"当前增量"，而非从旧起点累计
+        self.assertAlmostEqual(a._pan_x, 10.0, places=6)
 
 
 class TestApplyPan(unittest.TestCase):

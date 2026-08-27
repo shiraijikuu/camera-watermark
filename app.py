@@ -2185,6 +2185,13 @@ class App:
                 self._view_y -= self._pan_y / scale
             self._pan_x = 0
             self._pan_y = 0
+            if getattr(self, '_drag_mode', None) == 'pan':
+                # 重渲染后 pan 归零，必须同步拖拽起点到当前鼠标，
+                # 否则 _wm_drag 下次用旧起点重算 pan，位移瞬间叠加 -> 突然加速
+                self._pan_start = (0, 0)
+                pos = getattr(self, '_last_drag_pos', None)
+                if pos:
+                    self._drag_start = pos
             self._render_preview()
 
     def _set_compare(self, on):
@@ -2231,6 +2238,7 @@ class App:
             return
         if mode == 'pan':
             # pan canvas: 直接移动画布上的图片项，秒级跟手，不重渲染
+            self._last_drag_pos = (evt.x, evt.y)   # 供缓冲重渲染后同步拖拽起点
             sx, sy = self._drag_start
             px, py = self._pan_start
             self._pan_x = px + (evt.x - sx)
