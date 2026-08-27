@@ -54,6 +54,14 @@ def _log(msg):
             f.write(time.strftime('%Y-%m-%d %H:%M:%S') + ' ' + str(msg) + '\n')
     except Exception:
         pass
+
+
+def _clean_pyi_env():
+    """清掉 PyInstaller onefile 运行时环境变量。
+    否则子进程（重启/热更新启动的新 exe）继承后会被引导器误判为 onefile 子进程，
+    父进程校验失败，报 "Failed to start embedded python interpreter!"。"""
+    for _k in ('_PYI_PARENT_PROCESS_LEVEL', '_PYI_ARCHIVE_FILE', '_PYI_APPLICATION_HOME_DIR'):
+        os.environ.pop(_k, None)
 APP_VERSION = '1.5.0'
 
 # ==================== 插件系统 ====================
@@ -67,6 +75,7 @@ class PluginAPI:
         self.export_hooks = []    # [func(img, meta, settings) -> img|None]（导出前处理）
         self.setting_specs = []   # [(plugin_name, key, spec)]（插件设置项）
         self.ui_ready_hooks = []  # [func(app)] 主界面构建完成后回调，插件可向界面添加任意控件
+        self.window_created_hooks = []  # [func(win)] 动态 Toplevel（插件设置/管理/商店等）创建完成后回调
         self.plugin_name = ''     # 当前加载的插件名
 
     def add_setting(self, key, label, kind='text', default='', options=None, min=0, max=100, step=1):
@@ -108,6 +117,13 @@ class PluginAPI:
         变化导致插件崩溃。"""
         if callable(func):
             self.ui_ready_hooks.append(func)
+
+    def on_window_created(self, func):
+        """注册窗口创建回调：每次动态 Toplevel（插件设置 / 插件管理 / 商店等）
+        创建完成后调用 func(win)。插件可用它对新建窗口上色或加控件。
+        回调内请用 try/except 防护。"""
+        if callable(func):
+            self.window_created_hooks.append(func)
 
 
 def load_plugins():
@@ -401,6 +417,7 @@ class PluginManagerWindow:
         self.win.geometry(WINDOW_MANAGER_SIZE)
         self.win.transient(parent.root)
         self.win.grab_set()
+        self.parent._notify_window_created(self.win)
         self._build()
         self.refresh()
 
@@ -496,6 +513,7 @@ class PluginSettingsWindow:
         self.win.geometry(WINDOW_SETTINGS_SIZE)
         self.win.transient(parent.root)
         self.win.grab_set()
+        self.parent._notify_window_created(self.win)
         self.widgets = {}
         self._build()
 
@@ -688,6 +706,7 @@ class PluginStoreWindow:
         self.win.geometry(WINDOW_STORE_SIZE)
         self.win.transient(parent.root)
         self.win.grab_set()
+        self.parent._notify_window_created(self.win)
         self.plugins = []
         self._installing = False       # 防重复点击安装（并发冲突）
         self._installing_pid = ''
@@ -1491,6 +1510,15 @@ class App:
             except Exception as e:
                 _log('插件 UI 初始化失败: %s' % e)
 
+    def _notify_window_created(self, win):
+        """动态 Toplevel（插件设置/管理/商店等）创建完成后，把窗口交给注册了
+        on_window_created 的插件（如上色）。单个插件异常不阻断其余插件。"""
+        for hook in list(PLUGIN_API.window_created_hooks):
+            try:
+                hook(win)
+            except Exception as e:
+                _log('插件窗口初始化失败: %s' % e)
+
     # ---------- 语言切换 ----------
     def _on_language_change(self, _evt=None):
         disp = self.lang_var.get()
@@ -1507,6 +1535,10 @@ class App:
 
     def _relaunch(self):
         try:
+            # 关键修复：清掉 PyInstaller onefile 运行时环境变量，否则新 exe 继承后
+            # 会被引导器误判为 onefile 子进程，父进程校验失败，报
+            # "Failed to start embedded python interpreter!"
+            _clean_pyi_env()
             if getattr(sys, 'frozen', False):
                 subprocess.Popen([sys.executable])
             else:
@@ -1607,8 +1639,7 @@ class App:
             return
         # 关键修复：清掉 PyInstaller 运行时环境变量，避免被 wscript 继承后再传给
         # 新 exe，导致新 exe 误以为自己是 onefile 子进程而做父进程校验报错。
-        for _k in ('_PYI_PARENT_PROCESS_LEVEL', '_PYI_ARCHIVE_FILE', '_PYI_APPLICATION_HOME_DIR'):
-            os.environ.pop(_k, None)
+        _clean_pyi_env()
         try:
             os.startfile(updater)
         except Exception as e:
