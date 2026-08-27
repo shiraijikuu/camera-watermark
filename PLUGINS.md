@@ -73,9 +73,6 @@ def register(api):
     api.add_format('tiff', '.tiff', 'TIFF', save_tiff)
 ```
 
-### 4. 预留：`api.settings_extra`（未来扩展 UI 设置项用）
-
-
 ### 4. 新增模板预设 `api.add_template_preset(name, template)`
 
 给「模板预设」下拉框添加一个预设项。
@@ -121,10 +118,7 @@ def register(api):
     api.on_export(add_copyright)
 ```
 
-### 7. 预留：`api.settings_extra`（未来扩展 UI 设置项用）
-
-
-### 8. 插件设置项 `api.add_setting(key, label, kind, default, options)`
+### 7. 插件设置项 `api.add_setting(key, label, kind, default, options)`
 
 插件可以注册设置项，在「导出」页 ->「插件设置」窗口里调整，自动保存到 config.json，
 渲染时通过 `settings['plugin_values'][插件名][key]` 读取。
@@ -149,7 +143,7 @@ def register(api):
 
 > 插件内可通过 `values['raw']` 判断当前照片是否为 RAW（可据此跳过，避免处理过慢）。
 
-### 9. 主界面就绪回调 `api.on_ui_ready(func)`（需主程序 ≥ 1.4.0）
+### 8. 主界面就绪回调 `api.on_ui_ready(func)`（需主程序 ≥ 1.4.0）
 
 主程序主界面构建完成后，把 `App` 实例交给回调 `func(app)`，插件可以**向主界面添加/修改任意控件**
 （顶部横幅、导出页按钮、改窗口标题、操作状态栏等）。
@@ -176,29 +170,18 @@ def register(api):
 
 ## 全部 API 一览
 
-| 方法 | 作用 |
-|------|------|
-| add_token(name, func) | 新增水印模板变量 {name} |
-| add_camera_name(make, model, friendly) | 覆盖相机显示名 |
-| add_format(name, ext, label, save_func) | 新增导出格式 |
-| add_template_preset(name, template) | 新增模板预设 |
-| add_watermark_style(name, label, renderer) | 新增自定义水印样式 |
-| on_export(func) | 导出前处理钩子 |
-| on_ui_ready(func) | 主界面构建完成后回调（可向界面加控件，需重启生效） |
-| on_ui_ready(func) | 主界面构建完成后回调（可向界面加控件，需重启生效） |
-| add_setting(key, label, kind, default, options) | 新增插件设置项（插件设置窗口） |
+| # | 方法 | 作用 |
+|---|------|------|
+| 1 | add_token(name, func) | 新增水印模板变量 {name} |
+| 2 | add_camera_name(make, model, friendly) | 覆盖相机显示名 |
+| 3 | add_format(name, ext, label, save_func) | 新增导出格式 |
+| 4 | add_template_preset(name, template) | 新增模板预设 |
+| 5 | add_watermark_style(name, label, renderer) | 新增自定义水印样式 |
+| 6 | on_export(func) | 导出前处理钩子 |
+| 7 | add_setting(key, label, kind, default, options) | 新增插件设置项（插件设置窗口） |
+| 8 | on_ui_ready(func) | 主界面构建完成后回调（可向界面加控件，需重启生效） |
 
-## 全部 API 一览
-
-| 方法 | 作用 |
-|------|------|
-| add_token(name, func) | 新增水印模板变量 {name} |
-| add_camera_name(make, model, friendly) | 覆盖相机显示名 |
-| add_format(name, ext, label, save_func) | 新增导出格式 |
-| add_template_preset(name, template) | 新增模板预设 |
-| add_watermark_style(name, label, renderer) | 新增自定义水印样式 |
-| on_export(func) | 导出前处理钩子 |
-| on_ui_ready(func) | 主界面构建完成后回调（可向界面加控件，需重启生效） |
+> 附：`settings_extra`（预留，未开放）—— 未来扩展 UI 设置项用。
 
 ## 调试
 
