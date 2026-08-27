@@ -62,7 +62,7 @@ def _clean_pyi_env():
     父进程校验失败，报 "Failed to start embedded python interpreter!"。"""
     for _k in ('_PYI_PARENT_PROCESS_LEVEL', '_PYI_ARCHIVE_FILE', '_PYI_APPLICATION_HOME_DIR'):
         os.environ.pop(_k, None)
-APP_VERSION = '1.7.0'
+APP_VERSION = '1.7.1'
 
 # ==================== 插件系统 ====================
 class PluginAPI:
@@ -978,10 +978,11 @@ class App:
                  'aperture': '光圈', 'iso': 'ISO', 'size': '尺寸'}
         widths = {'check': 34, 'name': 150, 'camera': 130, 'shutter': 70, 'aperture': 60, 'iso': 70, 'size': 90}
         self.tree.heading('#0', text=tr('缩略图'))
-        self.tree.column('#0', width=32, minwidth=32, stretch=False)
+        self.tree.column('#0', width=36, minwidth=36, stretch=False, anchor='center')
         for c in cols:
             self.tree.heading(c, text=tr(heads[c]))
-            self.tree.column(c, width=widths[c], anchor='w', stretch=(c in ('name', 'camera')))
+            self.tree.column(c, width=widths[c], anchor=('center' if c == 'check' else 'w'),
+                             stretch=(c in ('name', 'camera')))
         sb = ttk.Scrollbar(left, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
         self.tree.pack(side='left', fill='both', expand=True)
@@ -1007,7 +1008,14 @@ class App:
         self.canvas.bind('<ButtonPress-1>', self._wm_press)
         self.canvas.bind('<B1-Motion>', self._wm_drag)
         self.canvas.bind('<ButtonRelease-1>', self._wm_release)
+        self.canvas.bind('<MouseWheel>', self._on_wheel)
         self._dragging = False
+        self._drag_mode = None
+        self._drag_last_render = 0
+        self._pan_x = 0
+        self._pan_y = 0
+        self._drag_start = (0, 0)
+        self._pan_start = (0, 0)
         self.meta_var = tk.StringVar(value='')
         ttk.Label(right, textvariable=self.meta_var, foreground='#555').pack(fill='x')
 
@@ -1821,9 +1829,9 @@ class App:
             try:
                 img = self._open_oriented(path, orient)
                 img.thumbnail((24, 20), Image.LANCZOS)
-                self.msg_q.put(('thumb', idx, img.copy()))
+                self.msg_q.put(('thumb', (idx, img.copy())))
             except Exception:
-                self.msg_q.put(('thumb', idx, None))
+                self.msg_q.put(('thumb', (idx, None)))
             if n % 8 == 0:
                 self.msg_q.put(('thumb_batch', None))
 
@@ -1849,6 +1857,8 @@ class App:
             return
         self._current_preview_full = img
         self.meta_var.set(self._meta_text(ph['meta']))
+        self._pan_x = 0
+        self._pan_y = 0
         self._render_preview()
 
     def _meta_text(self, m):
@@ -1889,7 +1899,44 @@ class App:
 
     def _set_zoom(self, v):
         self.preview_scale = v
+        self._pan_x = 0
+        self._pan_y = 0
         self._render_preview()
+
+    def _on_wheel(self, evt):
+        """滚轮逐级缩放（0.25 步进，范围 0.25~4.0；fit 时向上先到 100%）。"""
+        cur = self.preview_scale
+        if cur == 'fit':
+            # fit 状态下向上滚：先到 100%（实际尺寸），再逐级放大
+            new = 1.0 if evt.delta > 0 else 0.75
+        else:
+            step = 0.25 if evt.delta > 0 else -0.25
+            new = max(0.25, min(4.0, float(cur) + step))
+        self._set_zoom(new)
+
+    def _apply_pan(self):
+        """把当前 _pan_x/_pan_y 应用到画布：只移动图片项 + 更新命中矩形，不重渲染。"""
+        item = getattr(self, '_preview_item', None)
+        disp = getattr(self, '_preview_disp', None)
+        origin = getattr(self, '_preview_origin', None)
+        if item is None or disp is None or origin is None:
+            self._render_preview()
+            return
+        disp_w, disp_h, scale, _ox, _oy = disp
+        ox0, oy0 = origin
+        ox = ox0 + self._pan_x
+        oy = oy0 + self._pan_y
+        self._preview_disp = (disp_w, disp_h, scale, ox, oy)
+        try:
+            self.canvas.coords(item, ox + disp_w / 2, oy + disp_h / 2)
+        except Exception:
+            self._render_preview()
+            return
+        # 平移后同步水印命中矩形（图像坐标 -> 画布坐标）
+        rect = getattr(self, '_wm_rect_img', None)
+        if rect:
+            self._wm_rect = (ox + rect[0] * scale, oy + rect[1] * scale,
+                             ox + rect[2] * scale, oy + rect[3] * scale)
 
     def _set_compare(self, on):
         self.compare_mode = bool(on)
@@ -1920,36 +1967,72 @@ class App:
     def _wm_press(self, evt):
         rect = getattr(self, '_wm_rect', None)
         if rect and rect[0] <= evt.x <= rect[2] and rect[1] <= evt.y <= rect[3]:
-            self._dragging = True
+            # hit watermark -> drag watermark
+            self._drag_mode = 'watermark'
             self._drag_anchor = int(self.anchor_var.get())
         else:
-            self._dragging = False
+            # not on watermark -> pan canvas (reposition after zoom)
+            self._drag_mode = 'pan'
+            self._drag_start = (evt.x, evt.y)
+            self._pan_start = (self._pan_x, self._pan_y)
 
     def _wm_drag(self, evt):
-        if not getattr(self, '_dragging', False):
+        mode = getattr(self, '_drag_mode', None)
+        if mode is None:
             return
-        disp = getattr(self, '_preview_disp', None)
-        rect = getattr(self, '_wm_rect_img', None)
-        img = getattr(self, '_current_preview_full', None)
-        if not disp or not rect or img is None:
+        if mode == 'pan':
+            # pan canvas: 直接移动画布上的图片项，秒级跟手，不重渲染
+            sx, sy = self._drag_start
+            px, py = self._pan_start
+            self._pan_x = px + (evt.x - sx)
+            self._pan_y = py + (evt.y - sy)
+            self._apply_pan()
             return
-        _dw, _dh, scale, ox, oy = disp
-        if scale <= 0:
+        else:
+            # drag watermark: write offset straight into settings,
+            # skip save_config during drag (saved on release)
+            disp = getattr(self, '_preview_disp', None)
+            rect = getattr(self, '_wm_rect_img', None)
+            img = getattr(self, '_current_preview_full', None)
+            if not disp or not rect or img is None:
+                return
+            _dw, _dh, scale, ox, oy = disp
+            if scale <= 0:
+                return
+            ix = (evt.x - ox) / scale
+            iy = (evt.y - oy) / scale
+            inner_w = rect[2] - rect[0]
+            inner_h = rect[3] - rect[1]
+            W, H = img.size
+            margin = float(self.settings.get('margin_pct', 3.0))
+            ox_pct, oy_pct = self._offset_for_drag(self._drag_anchor, margin, inner_w, inner_h, W, H, ix, iy)
+            self.ox_var.set(ox_pct)
+            self.oy_var.set(oy_pct)
+            self.settings['offset_x_pct'] = ox_pct
+            self.settings['offset_y_pct'] = oy_pct
+        # throttle: ~33ms per render (~30fps); state is already updated,
+        # release will render the final frame
+        now = time.time()
+        if now - self._drag_last_render < 0.033:
             return
-        ix = (evt.x - ox) / scale
-        iy = (evt.y - oy) / scale
-        inner_w = rect[2] - rect[0]
-        inner_h = rect[3] - rect[1]
-        W, H = img.size
-        margin = float(self.settings.get('margin_pct', 3.0))
-        ox_pct, oy_pct = self._offset_for_drag(self._drag_anchor, margin, inner_w, inner_h, W, H, ix, iy)
-        self.ox_var.set(ox_pct)
-        self.oy_var.set(oy_pct)
+        self._drag_last_render = now
         self._update_labels()
-        self._on_change()
+        self._render_preview()
 
     def _wm_release(self, _evt=None):
-        self._dragging = False
+        mode = getattr(self, '_drag_mode', None)
+        self._drag_mode = None
+        if mode == 'watermark':
+            # save final offset + render final frame (covers throttled-out frame)
+            self._update_labels()
+            self._render_preview()
+            try:
+                save_config(self.settings)
+            except Exception as e:
+                _log('save config failed: %s' % e)
+        elif mode == 'pan':
+            # 平移已实时生效，release 只需确保位置与命中矩形一致
+            self._apply_pan()
 
     def _render_preview(self):
         img = getattr(self, '_current_preview_full', None)
@@ -1963,22 +2046,37 @@ class App:
                                     fill='#888', font=('Microsoft YaHei', 14), justify='center')
             return
         self._collect_settings()
+        cw = max(120, self.canvas.winfo_width() - 10)
+        ch = max(120, self.canvas.winfo_height() - 10)
+        scale = self._compute_preview_scale(cw, ch, img.width, img.height)
+        # 缓存"原图缩放底图"：拖拽水印/平移时只需在小图上重画水印，
+        # 避免每次都做全分辨率渲染 + 全图缩放（大图可快几十倍，拖拽才跟手）
+        base_key = (id(img), scale)
+        if getattr(self, '_preview_base_key', None) != base_key:
+            try:
+                bw = max(1, int(img.width * scale))
+                bh = max(1, int(img.height * scale))
+                self._preview_base = img.resize((bw, bh), Image.LANCZOS)
+            except Exception:
+                self._preview_base = img
+            self._preview_base_key = base_key
+        base = self._preview_base
         if self.compare_mode:
-            out = img  # 对比原图：不画水印层
+            out = base  # 对比原图：不画水印层
         else:
             try:
                 meta = self.photos[self.current_index]['meta']
-                out = self._render_with_style(img, self.settings, build_values(meta, self.settings))
+                out = self._render_with_style(base, self.settings, build_values(meta, self.settings))
             except Exception as e:
                 self.status_var.set('预览渲染失败: %s' % e)
                 return
-        cw = max(120, self.canvas.winfo_width() - 10)
-        ch = max(120, self.canvas.winfo_height() - 10)
-        scale = self._compute_preview_scale(cw, ch, out.width, out.height)
-        disp = out.resize((max(1, int(out.width * scale)), max(1, int(out.height * scale))), Image.LANCZOS)
+        disp = out
         disp_w, disp_h = disp.size
-        ox = cw / 2 - disp_w / 2
-        oy = ch / 2 - disp_h / 2
+        ox0 = cw / 2 - disp_w / 2
+        oy0 = ch / 2 - disp_h / 2
+        self._preview_origin = (ox0, oy0)   # 未平移的左上角（供快速平移计算）
+        ox = ox0 + self._pan_x
+        oy = oy0 + self._pan_y
         self._preview_disp = (disp_w, disp_h, scale, ox, oy)
         # 水印矩形（图像坐标 + 画布坐标），供拖拽命中检测
         wm_img = None
@@ -1997,7 +2095,7 @@ class App:
         self._wm_rect = wm_canvas
         self.preview_img = ImageTk.PhotoImage(disp)
         self.canvas.delete('all')
-        self.canvas.create_image(cw // 2, ch // 2, image=self.preview_img)
+        self._preview_item = self.canvas.create_image(ox + disp_w / 2, oy + disp_h / 2, image=self.preview_img)
 
     # ---------- 输出 ----------
     def choose_output(self):
@@ -2158,6 +2256,9 @@ class App:
                         messagebox.showerror(tr('导出出错'), str(data))
         except queue.Empty:
             pass
+        except ValueError as e:
+            # 消息格式异常不致命：记日志并继续轮询
+            _log('消息格式错误: %s' % e)
         self.root.after(100, self._poll_queue)
 
 

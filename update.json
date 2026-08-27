@@ -1,6 +1,6 @@
 {
-  "version": "1.7.0",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.7.0/PhotoWatermark-v1.7.0.exe",
-  "note": "v1.7.0: Fix dynamic-window theming timing + drag & drop photo folder. / 修复动态窗口主题适配时机 + 拖拽加载照片文件夹。",
-  "checksum": "5fd45b20319112bd08013125b5f7092310e4327a4fed0fa69e5c56428681b4bf"
+  "version": "1.7.1",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.7.1/PhotoWatermark-v1.7.1.exe",
+  "note": "v1.7.1: UI fixes - thumbnails display, checkmark alignment, drag-to-pan, mouse-wheel zoom, real-time watermark drag. / 界面修复：缩略图显示、勾选对齐、拖拽平移、滚轮缩放、水印拖拽实时跟手。",
+  "checksum": "703ab9cd5175a5338505da71509de308d052aa20009e1f8b451c38ef15d92727"
 }
