@@ -1,6 +1,6 @@
 {
-  "version": "1.8.0",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.8.0/PhotoWatermark-v1.8.0.exe",
-  "note": "v1.8.0: New zoom slider (25-400%) synced with wheel/buttons; fix wheel fit boundary for large photos; README build cmd bundles tkdnd. / 新增缩放滑块（与滚轮/按钮同步）；修复大图 fit 边界；README 打包命令补齐 tkdnd。",
-  "checksum": "4c153f75a5a86387e4f57f9312fe6c31a00469eac3489fc24525440c63a8547a"
+  "version": "1.9.0",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.9.0/PhotoWatermark-v1.9.0.exe",
+  "note": "v1.9.0: Dual-source fallback for update check & plugin store (jsDelivr @main + GitHub raw), bypasses stale CDN cache without config changes. / 更新检测与插件商店双源回退（jsDelivr @main + GitHub raw），绕过 CDN 缓存滞后，无需改配置。",
+  "checksum": "edf76031b015424968b91688b637538257952921ac9b18c7ef6805a38d7b4fd7"
 }

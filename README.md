@@ -4,7 +4,7 @@
 
 **中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
-- **Version / 版本：** v1.8.0
+- **Version / 版本：** v1.9.0
 - **Author / 作者：** Shiraijikuu (GitHub)
 - **AI assistance / AI 协助：** OpenAI Codex
 - **License / 许可证：** MIT (LICENSE)
@@ -153,11 +153,11 @@ See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.m
 3. **向微软提交误报**：https://www.microsoft.com/en-us/wdsi/filesubmission （通常几天内清除）。
 4. 自行验证：源码公开（MIT），可按 RELEASE.md 从源码自行打包。
 
-## Release Notes / 更新公告（v1.8.0）
+## Release Notes / 更新公告（v1.9.0）
 
-**EN: Zoom slider + fit fix.** New zoom slider (25–400%) synced with wheel & buttons; fixed wheel-zoom fit edge case for large photos; build docs now bundle tkdnd.
+**EN: Dual-source fallback.** Update check & plugin store now also query GitHub raw when jsDelivr @main cache lags — existing users get updates immediately without config changes.
 
-**中文：缩放滑块 + fit 修复。** 新增缩放滑块（25%~400%）与滚轮/按钮同步；修复大图 fit 边界；打包文档补齐 tkdnd。
+**中文：双源回退。** 更新检测与插件商店在 jsDelivr @main 缓存滞后时自动改查 GitHub raw 权威源，存量用户无需改配置即时生效。
 
 > ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.7.0 once** — the old auto-updater cannot upgrade to this version; after installing v1.7.0, auto-update works again.
 > ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.7.0 一次** — 旧版自动更新无法升级到本版；安装 v1.7.0 后自动更新恢复正常。

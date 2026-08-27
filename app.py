@@ -63,7 +63,7 @@ def _clean_pyi_env():
     父进程校验失败，报 "Failed to start embedded python interpreter!"。"""
     for _k in ('_PYI_PARENT_PROCESS_LEVEL', '_PYI_ARCHIVE_FILE', '_PYI_APPLICATION_HOME_DIR'):
         os.environ.pop(_k, None)
-APP_VERSION = '1.8.0'
+APP_VERSION = '1.9.0'
 
 # ==================== 插件系统 ====================
 class PluginAPI:
@@ -294,6 +294,60 @@ def _version_newer(a, b):
                 out.append(0)
         return out
     return parse(a) > parse(b)
+
+
+def _jsdelivr_to_raw(url):
+    """jsDelivr @main URL → 对应 GitHub raw URL；非 jsDelivr @main 返回 None。
+
+    用于绕过 jsDelivr 的 @main 分支解析缓存（它可能长时间滞后于最新提交）。
+    例：https://cdn.jsdelivr.net/gh/u/repo@main/update.json
+      → https://raw.githubusercontent.com/u/repo/main/update.json
+    """
+    marker = 'cdn.jsdelivr.net/gh/'
+    if marker not in url or '@main' not in url:
+        return None
+    rest = url.split(marker, 1)[1]            # 'user/repo@main/path...'
+    repo, sep, path = rest.partition('@main/')
+    if not sep or not path:
+        return None
+    return 'https://raw.githubusercontent.com/' + repo + '/main/' + path
+
+
+def _fetch_json_best(url, timeout):
+    """拉取 JSON 清单（主程序更新检测）。
+
+    jsDelivr @main 存在分支解析缓存，可能滞后于最新提交：额外请求 GitHub raw
+    权威源，若 raw 版本号更高则采用 raw 数据；raw 失败时回退 jsDelivr 结果。
+    非 jsDelivr @main 的 URL 只请求单源（用户自定义源自行负责）。
+    """
+    def fetch(u):
+        with urllib.request.urlopen(u, timeout=timeout) as r:
+            return json.loads(r.read().decode('utf-8'))
+    data = fetch(url)
+    raw = _jsdelivr_to_raw(url)
+    if raw:
+        try:
+            raw_data = fetch(raw)
+            if _version_newer(str(raw_data.get('version', '')), str(data.get('version', ''))):
+                data = raw_data
+        except Exception:
+            pass   # raw 不可用时仍用 jsDelivr 结果
+    return data
+
+
+def _fetch_json_store(url, timeout):
+    """拉取插件商店清单。商店要的是最新列表，jsDelivr @main 缓存滞后时优先
+    raw 权威源；raw 失败回退 jsDelivr。非 jsDelivr @main 单源。"""
+    def fetch(u):
+        with urllib.request.urlopen(u, timeout=timeout) as r:
+            return json.loads(r.read().decode('utf-8'))
+    raw = _jsdelivr_to_raw(url)
+    if raw:
+        try:
+            return fetch(raw)
+        except Exception:
+            pass
+    return fetch(url)
 
 
 def _read_installed_meta():
@@ -740,8 +794,7 @@ class PluginStoreWindow:
 
     def _load_worker(self, url):
         try:
-            with urllib.request.urlopen(url, timeout=TIMEOUT_STORE_LOAD) as r:
-                data = json.loads(r.read().decode('utf-8'))
+            data = _fetch_json_store(url, TIMEOUT_STORE_LOAD)
             self.plugins = data.get('plugins', []) if isinstance(data, dict) else []
             self.parent.root.after(0, self._render)
         except Exception as e:
@@ -1660,8 +1713,7 @@ class App:
 
     def _check_update_worker(self, url):
         try:
-            with urllib.request.urlopen(url, timeout=TIMEOUT_UPDATE_CHECK) as r:
-                data = json.loads(r.read().decode('utf-8'))
+            data = _fetch_json_best(url, TIMEOUT_UPDATE_CHECK)
             latest = str(data.get('version', ''))
             dl_url = data.get('url', '')
             note = data.get('note', '')

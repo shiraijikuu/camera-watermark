@@ -8,6 +8,16 @@
 
 ---
 
+## [1.9.0] - 2026-08-27
+
+### 新增
+- 更新检测 / 插件商店「双源回退」：jsDelivr @main 存在分支解析缓存、可能长时间滞后于最新提交时，
+  运行时自动改请求 GitHub raw 权威源（_fetch_json_best / _fetch_json_store）：
+  - 更新检测：raw 版本号更高则采用 raw 数据，raw 失败回退 jsDelivr（对存量用户即时生效，无需改配置）
+  - 插件商店：优先 raw 最新列表，raw 失败回退 jsDelivr
+  - 非 jsDelivr @main 的自定义源仍只请求单源
+
+---
 ## [1.8.0] - 2026-08-27
 
 ### 新增

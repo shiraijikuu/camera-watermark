@@ -112,5 +112,109 @@ class TestDownloadVerify(unittest.TestCase):
         self.assertTrue(payload[0])
 
 
+import json
+from unittest import mock
+
+
+class _FakeResp:
+    def __init__(self, data):
+        self._d = data
+    def read(self):
+        return self._d
+    def __enter__(self):
+        return self
+    def __exit__(self, *a):
+        return False
+
+
+class TestJsdelivrToRaw(unittest.TestCase):
+    def test_standard_main(self):
+        self.assertEqual(
+            app._jsdelivr_to_raw('https://cdn.jsdelivr.net/gh/u/repo@main/update.json'),
+            'https://raw.githubusercontent.com/u/repo/main/update.json')
+
+    def test_with_subpath(self):
+        self.assertEqual(
+            app._jsdelivr_to_raw('https://cdn.jsdelivr.net/gh/u/repo@main/plugins/data.json'),
+            'https://raw.githubusercontent.com/u/repo/main/plugins/data.json')
+
+    def test_non_jsdelivr_returns_none(self):
+        self.assertIsNone(app._jsdelivr_to_raw('https://example.com/update.json'))
+
+    def test_jsdelivr_tag_not_main_returns_none(self):
+        self.assertIsNone(app._jsdelivr_to_raw('https://cdn.jsdelivr.net/gh/u/repo@v1.8.0/update.json'))
+
+    def test_jsdelivr_main_without_path_returns_none(self):
+        self.assertIsNone(app._jsdelivr_to_raw('https://cdn.jsdelivr.net/gh/u/repo@main'))
+
+
+class TestFetchJsonBest(unittest.TestCase):
+    JSD = 'https://cdn.jsdelivr.net/gh/u/repo@main/update.json'
+    RAW = 'https://raw.githubusercontent.com/u/repo/main/update.json'
+
+    def _route(self, versions):
+        """versions: {url: json}，按 url 返回响应。"""
+        def fake_open(url, timeout=5):
+            d = versions.get(url)
+            if d is None:
+                raise OSError('404')
+            return _FakeResp(json.dumps(d).encode('utf-8'))
+        return fake_open
+
+    def test_jsdelivr_stale_uses_raw_newer(self):
+        # @main 缓存卡在 1.7.1，raw 已是 1.8.0 -> 应采用 raw
+        with mock.patch('app.urllib.request.urlopen',
+                        side_effect=self._route({self.JSD: {'version': '1.7.1'},
+                                                 self.RAW: {'version': '1.8.0', 'url': 'R'}})):
+            data = app._fetch_json_best(self.JSD, 5)
+        self.assertEqual(data['version'], '1.8.0')
+        self.assertEqual(data['url'], 'R')
+
+    def test_jsdelivr_fresh_keeps_jsdelivr(self):
+        with mock.patch('app.urllib.request.urlopen',
+                        side_effect=self._route({self.JSD: {'version': '1.8.0', 'url': 'J'},
+                                                 self.RAW: {'version': '1.8.0'}})):
+            data = app._fetch_json_best(self.JSD, 5)
+        self.assertEqual(data['url'], 'J')   # 版本不落后，保留 jsDelivr 数据
+
+    def test_raw_failure_falls_back_to_jsdelivr(self):
+        with mock.patch('app.urllib.request.urlopen',
+                        side_effect=self._route({self.JSD: {'version': '1.7.1', 'url': 'J'}})):
+            data = app._fetch_json_best(self.JSD, 5)   # raw 抛 OSError -> 回退
+        self.assertEqual(data['version'], '1.7.1')
+
+    def test_non_jsdelivr_single_source(self):
+        with mock.patch('app.urllib.request.urlopen',
+                        side_effect=self._route({'https://example.com/u.json': {'version': '2.0'}})):
+            data = app._fetch_json_best('https://example.com/u.json', 5)
+        self.assertEqual(data['version'], '2.0')
+
+
+class TestFetchJsonStore(unittest.TestCase):
+    JSD = 'https://cdn.jsdelivr.net/gh/u/repo@main/plugins.json'
+    RAW = 'https://raw.githubusercontent.com/u/repo/main/plugins.json'
+
+    def _route(self, versions):
+        def fake_open(url, timeout=5):
+            d = versions.get(url)
+            if d is None:
+                raise OSError('404')
+            return _FakeResp(json.dumps(d).encode('utf-8'))
+        return fake_open
+
+    def test_store_prefers_raw_when_stale(self):
+        with mock.patch('app.urllib.request.urlopen',
+                        side_effect=self._route({self.JSD: {'plugins': []},
+                                                 self.RAW: {'plugins': [{'id': 'p1'}]}})):
+            data = app._fetch_json_store(self.JSD, 5)
+        self.assertEqual(data['plugins'], [{'id': 'p1'}])
+
+    def test_store_raw_failure_falls_back(self):
+        with mock.patch('app.urllib.request.urlopen',
+                        side_effect=self._route({self.JSD: {'plugins': [{'id': 'old'}]}})):
+            data = app._fetch_json_store(self.JSD, 5)
+        self.assertEqual(data['plugins'], [{'id': 'old'}])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
