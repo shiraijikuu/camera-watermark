@@ -54,7 +54,7 @@ def _log(msg):
             f.write(time.strftime('%Y-%m-%d %H:%M:%S') + ' ' + str(msg) + '\n')
     except Exception:
         pass
-APP_VERSION = '1.4.1'
+APP_VERSION = '1.5.0'
 
 # ==================== 插件系统 ====================
 class PluginAPI:

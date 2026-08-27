@@ -4,7 +4,7 @@
 
 **中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
-- **Version / 版本：** v1.4.1
+- **Version / 版本：** v1.5.0
 - **Author / 作者：** Shiraijikuu (GitHub)
 - **AI assistance / AI 协助：** OpenAI Codex
 - **License / 许可证：** MIT (LICENSE)
@@ -25,6 +25,9 @@
 - Plugin Manager window (status / add .zip .py / refresh)
 - Plugin Store: browse the catalog & one-click install/update plugins (version + checksum detection)
 - Plugin UI hook (on_ui_ready): plugins can customize the main UI (e.g. dark/light theme)
+- Photo list: search / sort / filter / thumbnails
+- Preview: zoom (fit/100%/200%) + hold-to-compare original; drag watermark to position
+- Export: per-file progress + result summary + open-output-folder
 - Hot update with checksum detection (configure update_url in config.json; same-version rebuilds are detected)
 - Settings auto-saved (config.json)
 
@@ -42,6 +45,9 @@
 - 插件管理窗口（查看状态 / 添加 .zip .py / 刷新）
 - 插件商店：浏览目录、一键安装/更新插件（版本号 + 校验和检测）
 - 插件 UI 扩展点 on_ui_ready：插件可定制主界面（如主题切换）
+- 照片列表：搜索 / 排序 / 筛选 / 缩略图
+- 预览：缩放（适应窗口/100%/200%）+ 按住对比原图；可拖拽水印定位
+- 导出：逐文件进度 + 结果汇总 + 打开输出文件夹
 - 热更新 + 校验和检测（config.json 配置 update_url；同版本号重新发布也能检测到）
 - 设置自动保存（config.json）
 
@@ -147,14 +153,14 @@ See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.m
 3. **向微软提交误报**：https://www.microsoft.com/en-us/wdsi/filesubmission （通常几天内清除）。
 4. 自行验证：源码公开（MIT），可按 RELEASE.md 从源码自行打包。
 
-## Release Notes / 更新公告（v1.4.1）
+## Release Notes / 更新公告（v1.5.0）
 
-**EN: Fixed "update not detected" + reduced antivirus false positives.** Manifest URLs now use the jsDelivr CDN (fresh immediately); the exe now embeds full version metadata; README adds an antivirus false-positive guide.
+**EN: Big UI update.** List search/sort/filter/thumbnails; preview zoom + hold-to-compare; drag watermark to position; export per-file progress + summary; empty-state guide.
 
-**中文：修复"检测不到更新" + 降低杀软误报。** 清单地址改用 jsDelivr CDN（即时生效）；exe 嵌入完整版本信息；README 新增误报处理指南。
+**中文：界面大改版。** 列表搜索/排序/筛选/缩略图；预览缩放 + 按住对比原图；拖拽水印定位；导出逐文件进度 + 汇总；空状态引导。
 
-> ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.4.1 once** — the old auto-updater cannot upgrade to this version; after installing v1.4.1, auto-update works again.
-> ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.4.1 一次** — 旧版自动更新无法升级到本版；安装 v1.4.1 后自动更新恢复正常。
+> ⚠️ **v1.2.0 / v1.3.0 users: please manually download v1.5.0 once** — the old auto-updater cannot upgrade to this version; after installing v1.5.0, auto-update works again.
+> ⚠️ **v1.2.0 / v1.3.0 用户：请手动下载 v1.5.0 一次** — 旧版自动更新无法升级到本版；安装 v1.5.0 后自动更新恢复正常。
 
 详见 / See CHANGELOG.md。
 

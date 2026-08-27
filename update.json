@@ -1,6 +1,6 @@
 {
-  "version": "1.4.1",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.4.1/PhotoWatermark-v1.4.1.exe",
-  "note": "v1.4.1: Fix update-not-detected (jsDelivr CDN) + embed version metadata (reduce AV false positives). / 修复检测不到更新（jsDelivr）+ 嵌入版本信息（降低杀软误报）。",
-  "checksum": "19c7b7ab763cc41fd35bd3fac17c8c67a889f154a00670617c251384918b0fa7"
+  "version": "1.5.0",
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v1.5.0/PhotoWatermark-v1.5.0.exe",
+  "note": "v1.5.0: Big UI update (list search/sort/filter/thumbnails, preview zoom+compare, drag watermark, export summary). / 界面大改版（列表搜索/排序/筛选/缩略图、预览缩放+对比、拖拽水印、导出汇总）。",
+  "checksum": "60b91c65f8bd4db8b4da99f2625e36c5e927deaf5413cd478518092d504a9525"
 }
