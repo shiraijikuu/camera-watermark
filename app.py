@@ -1003,6 +1003,8 @@ class App:
         self.btn_export.pack(side='left')
         self.btn_cancel = ttk.Button(bottom, text=tr('取消'), command=self.request_cancel, state='disabled')
         self.btn_cancel.pack(side='left', padx=6)
+        self.btn_open_out = ttk.Button(bottom, text=tr('打开输出文件夹'), command=self.open_output, state='disabled')
+        self.btn_open_out.pack(side='left', padx=6)
         self.progress = ttk.Progressbar(bottom, mode='determinate')
         self.progress.pack(side='left', fill='x', expand=True, padx=8)
         self.status_var = tk.StringVar(value=tr('就绪'))
@@ -1965,11 +1967,14 @@ class App:
 
     def _export_worker(self, targets, outdir, fmt):
         s = self.settings
+        results = {'success': 0, 'fail': 0, 'skip': 0, 'errors': []}
         try:
+            n = len(targets)
             for i, ph in enumerate(targets):
                 if self.cancel:
+                    results['skip'] += n - i
                     break
-                self.msg_q.put(('export_progress', (i, len(targets), ph['name'])))
+                self.msg_q.put(('export_progress', (i + 1, n, ph['name'])))
                 try:
                     img = self._open_oriented(ph['path'], (ph.get('meta') or {}).get('orientation'))
                     values = build_values(ph['meta'], s)
@@ -1987,11 +1992,16 @@ class App:
                         photo.save_watermarked(ph['path'], target, out, fmt,
                                                s.get('jpeg_quality', 95), ph['meta'],
                                                preserve_exif=s.get('preserve_exif', True))
+                    results['success'] += 1
                 except Exception as e:
+                    results['fail'] += 1
+                    results['errors'].append((ph['name'], str(e)))
                     self.msg_q.put(('export_error', (ph['name'], str(e))))
-            self.msg_q.put(('export_done', None))
+            self.msg_q.put(('export_done', results))
         except Exception as e:
-            self.msg_q.put(('export_done', str(e)))
+            results['fail'] += 1
+            results['errors'].append(('', str(e)))
+            self.msg_q.put(('export_done', results))
 
     def _unique_path(self, target):
         if self.settings.get('overwrite') or not os.path.exists(target):
@@ -2020,7 +2030,7 @@ class App:
                 elif kind == 'export_progress':
                     i, n, name = data
                     self.progress.config(value=0 if n == 0 else i * 100 / n)
-                    self.status_var.set('正在处理 (%d/%d)：%s' % (i, n, name))
+                    self.status_var.set(tr('%d/%d 张：%s') % (i, n, name))
                 elif kind == 'export_error':
                     self.status_var.set('导出失败：%s' % data[1])
                     print(tr('导出失败 %s: %s') % data)
@@ -2056,12 +2066,23 @@ class App:
                     self.busy = False
                     self.btn_export.config(state='normal')
                     self.btn_cancel.config(state='disabled')
-                    if data:
+                    self.btn_open_out.config(state='normal')
+                    if isinstance(data, dict):
+                        r = data
+                        line = tr('成功 %d · 失败 %d · 跳过 %d') % (r['success'], r['fail'], r['skip'])
+                        self.status_var.set(tr('导出完成：') + line)
+                        if r['fail']:
+                            det = '\n'.join('· %s: %s' % (nm, e) for nm, e in r['errors'][:20])
+                            if len(r['errors']) > 20:
+                                det += '\n…'
+                            messagebox.showwarning(tr('导出完成'),
+                                                   tr('成功 %d · 失败 %d · 跳过 %d') % (r['success'], r['fail'], r['skip']) +
+                                                   '\n\n' + tr('失败明细：') + '\n' + det)
+                        else:
+                            messagebox.showinfo(tr('导出完成'), line)
+                    else:
                         self.status_var.set('导出出错：%s' % data)
                         messagebox.showerror(tr('导出出错'), str(data))
-                    else:
-                        self.status_var.set('导出完成')
-                        messagebox.showinfo(tr('导出完成'), tr('水印照片已导出到：\n') + self.output_var.get())
         except queue.Empty:
             pass
         self.root.after(100, self._poll_queue)
