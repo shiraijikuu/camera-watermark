@@ -103,6 +103,35 @@ class TestRenderWithStyleBranch(unittest.TestCase):
         self.assertIs(self.received[0][0], img)
         self.assertIs(out, img)
 
+    def test_replaces_style_plus_overlay_compat_style(self):
+        # 整图重绘型主样式（模糊卡片）渲染后，再叠加兼容型叠加样式（图片水印/品牌logo）
+        calls = []
+        def replace_renderer(img, settings, values, source=None):
+            calls.append(('replace', img is source))
+            out = img.copy()
+            out.paste((255, 0, 0), (0, 0, 50, 50))   # 左上角红块 = 模糊卡片渲染结果
+            return out
+        def overlay_renderer(img, settings, values, source=None):
+            calls.append(('overlay', img))
+            out = img.copy()
+            out.paste((0, 0, 255), (120, 60, 170, 110))   # 蓝块 = 叠加的品牌logo
+            return out
+        app.PLUGIN_API.styles['blur'] = ('模糊卡片', replace_renderer, True)
+        app.PLUGIN_API.styles['imgwm'] = ('图片水印', overlay_renderer, False)
+        img = Image.new('RGB', (200, 120), (50, 50, 50))
+        settings = {'template': 'HELLO', 'font_family': '', 'style': 'blur'}
+        with mock.patch('photo.render_watermark', wraps=photo.render_watermark) as mw:
+            out = app.App._render_with_style(None, img, settings, {})
+        # 两种样式都被调用；overlay 收到的是 replace 之后的图（文字水印之上）
+        kinds = [c[0] for c in calls]
+        self.assertEqual(kinds, ['replace', 'overlay'])
+        self.assertIsNot(calls[1][1], img)      # overlay 收到的不是原图
+        # 红块 + 蓝块都在最终图里（同时出现）
+        px = out.load()
+        self.assertEqual(px[10, 10][:3], (255, 0, 0))
+        self.assertEqual(px[150, 80][:3], (0, 0, 255))
+        mw.assert_not_called()                  # 整图重绘跳过默认文字水印
+
     def test_default_style_ignores_styles(self):
         # style='default' 时不调用插件样式，只画默认文字水印
         img = Image.new('RGB', (200, 120), (50, 50, 50))
@@ -142,7 +171,7 @@ class TestBlurCardPlugin(unittest.TestCase):
         s = {'blur_card_ratio': '16:9', 'blur_card_fg_scale': 72,
              'blur_card_bg_blur': 0, 'blur_card_darken': 0,
              'blur_card_round': 0, 'blur_card_shadow': False,
-             'blur_card_outline': False, 'blur_card_show_logo': False,
+             'blur_card_outline': False,
              'blur_card_wm_pos': 'below', 'template': '{make} {model}',
              'font_family': '', 'font_size_pct': 3.0}
         out = self.mod._render(img, s, {'make': 'NIKON', 'model': 'D3200'}, source=img)
@@ -174,7 +203,7 @@ class TestBlurCardPlugin(unittest.TestCase):
             keys = set(_app.PLUGIN_SETTINGS.get('blur-card', {}).keys())
             for k in ('blur_card_ratio', 'blur_card_fg_scale', 'blur_card_bg_blur',
                       'blur_card_darken', 'blur_card_round', 'blur_card_shadow',
-                      'blur_card_outline', 'blur_card_backdrop', 'blur_card_show_logo',
+                      'blur_card_outline', 'blur_card_backdrop',
                       'blur_card_wm_pos'):
                 self.assertIn(k, keys, k + ' 未注册')
             self.assertIs(_app.PLUGIN_API.styles['blur_card'][2], True)

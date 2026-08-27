@@ -1613,6 +1613,18 @@ class App:
                 res = _call_style_renderer(renderer, wm, settings, values, img)
             if res is not None:
                 out = res
+            # 整图重绘型主样式（如模糊卡片）：再叠加兼容型叠加样式（如图片水印/品牌 logo）。
+            # 这样「模糊卡片 + 品牌 logo」可共存：图片水印有大小/位置滑块，
+            # 且叠在文字水印上层（renderer 在带水印图上叠加）。
+            if replaces2 and apply_style:
+                for _sname, (_l2, _r2, _rep2) in PLUGIN_API.styles.items():
+                    if not _rep2:
+                        try:
+                            _res = _call_style_renderer(_r2, out, settings, values, out)
+                            if _res is not None:
+                                out = _res
+                        except Exception:
+                            pass
         return out
 
     def _apply_export_hooks(self, img, meta, settings):
