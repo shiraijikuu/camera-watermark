@@ -969,6 +969,17 @@ class App:
 
         right = ttk.Frame(paned)
         paned.add(right, weight=3)
+        zoom_bar = ttk.Frame(right)
+        zoom_bar.pack(fill='x')
+        self.preview_scale = 'fit'
+        self.compare_mode = False
+        ttk.Button(zoom_bar, text=tr('适应窗口'), command=lambda: self._set_zoom('fit')).pack(side='left')
+        ttk.Button(zoom_bar, text='100%', command=lambda: self._set_zoom(1.0)).pack(side='left', padx=2)
+        ttk.Button(zoom_bar, text='200%', command=lambda: self._set_zoom(2.0)).pack(side='left', padx=2)
+        self.compare_btn = ttk.Button(zoom_bar, text=tr('按住对比原图'))
+        self.compare_btn.pack(side='left', padx=8)
+        self.compare_btn.bind('<ButtonPress-1>', lambda e: self._set_compare(True))
+        self.compare_btn.bind('<ButtonRelease-1>', lambda e: self._set_compare(False))
         self.canvas = tk.Canvas(right, bg='#111', highlightthickness=0)
         self.canvas.pack(fill='both', expand=True)
         self.meta_var = tk.StringVar(value='')
@@ -1798,20 +1809,37 @@ class App:
             self.root.after_cancel(self.preview_timer)
         self.preview_timer = self.root.after(80, self._render_preview)
 
+    def _compute_preview_scale(self, cw, ch, ow, oh):
+        """计算预览显示倍率（fit=适应窗口并最多放大 2 倍；否则固定 1.0/2.0）。纯逻辑便于测试。"""
+        if self.preview_scale == 'fit':
+            return min(cw / max(1, ow), ch / max(1, oh), 2.0)
+        return float(self.preview_scale)
+
+    def _set_zoom(self, v):
+        self.preview_scale = v
+        self._render_preview()
+
+    def _set_compare(self, on):
+        self.compare_mode = bool(on)
+        self._render_preview()
+
     def _render_preview(self):
         img = getattr(self, '_current_preview_full', None)
         if img is None:
             return
         self._collect_settings()
-        try:
-            meta = self.photos[self.current_index]['meta']
-            out = self._render_with_style(img, self.settings, build_values(meta, self.settings))
-        except Exception as e:
-            self.status_var.set('预览渲染失败: %s' % e)
-            return
+        if self.compare_mode:
+            out = img  # 对比原图：不画水印层
+        else:
+            try:
+                meta = self.photos[self.current_index]['meta']
+                out = self._render_with_style(img, self.settings, build_values(meta, self.settings))
+            except Exception as e:
+                self.status_var.set('预览渲染失败: %s' % e)
+                return
         cw = max(120, self.canvas.winfo_width() - 10)
         ch = max(120, self.canvas.winfo_height() - 10)
-        scale = min(cw / out.width, ch / out.height, 2.0)
+        scale = self._compute_preview_scale(cw, ch, out.width, out.height)
         disp = out.resize((max(1, int(out.width * scale)), max(1, int(out.height * scale))), Image.LANCZOS)
         self.preview_img = ImageTk.PhotoImage(disp)
         self.canvas.delete('all')
