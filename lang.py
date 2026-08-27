@@ -85,6 +85,8 @@ EN = {
     "成功 %d · 失败 %d · 跳过 %d": "OK %d · Failed %d · Skipped %d",
     "失败明细：": "Failed files:",
     "导出完成：": "Export done: ",
+    "把照片文件夹拖进来 / 点上方「选择照片文件夹」": "Drop a photo folder here, or click 'Select Photo Folder' above",
+
 
 
 
@@ -240,6 +242,8 @@ ZH_TW = {
     "成功 %d · 失败 %d · 跳过 %d": "成功 %d · 失敗 %d · 跳過 %d",
     "失败明细：": "失敗明細：",
     "导出完成：": "導出完成：",
+    "把照片文件夹拖进来 / 点上方「选择照片文件夹」": "把照片文件夾拖進來 / 點上方「選擇照片文件夾」",
+
 
 
     "取消": "取消",

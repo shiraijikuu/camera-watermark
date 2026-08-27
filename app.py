@@ -1888,6 +1888,13 @@ class App:
     def _render_preview(self):
         img = getattr(self, '_current_preview_full', None)
         if img is None:
+            # 空状态引导
+            self.canvas.delete('all')
+            cw = max(120, self.canvas.winfo_width())
+            ch = max(120, self.canvas.winfo_height())
+            self.canvas.create_text(cw // 2, ch // 2,
+                                    text=tr('把照片文件夹拖进来 / 点上方「选择照片文件夹」'),
+                                    fill='#888', font=('Microsoft YaHei', 14), justify='center')
             return
         self._collect_settings()
         if self.compare_mode:
