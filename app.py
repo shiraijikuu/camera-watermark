@@ -84,7 +84,7 @@ class PluginAPI:
 
     def add_setting(self, key, label, kind='text', default='', options=None, min=0, max=100, step=1):
         """注册插件设置项（在「插件设置」窗口显示并保存到 config.json）。
-        kind: 'text' | 'file' | 'number' | 'select' | 'bool' | 'range'（滑块）"""
+        kind: 'text' | 'file' | 'number' | 'select' | 'bool' | 'range'（滑块）| 'header'（分组标题，不存值）"""
         spec = {'label': label, 'kind': kind, 'default': default,
                 'options': list(options or []), 'min': min, 'max': max, 'step': step}
         self.setting_specs.append((self.plugin_name, key, spec))
@@ -683,6 +683,13 @@ class PluginSettingsWindow:
                 ttk.Label(row, text=spec['label'], width=18).pack(side='left')
                 cur = pvals.get(key, spec['default'])
                 kind = spec['kind']
+                if kind == 'header':
+                    # 分组标题：蓝色标题条，不生成控件、不存值
+                    hdr = tk.Label(grp, text=spec['label'], bg='#3b82f6', fg='white',
+                                   font=('Microsoft YaHei', 9, 'bold'), anchor='w', padx=8, pady=4)
+                    hdr.pack(fill='x', padx=2, pady=(6, 2))
+                    hdr._wm_keep_bg = True
+                    continue
                 if kind == 'file':
                     var = tk.StringVar(value=str(cur))
                     ent = ttk.Entry(row, textvariable=var)
