@@ -225,5 +225,35 @@ class TestWordSpacing(unittest.TestCase):
                      if px[x, y][:3] != (0, 0, 0))
         self.assertGreater(non_bg, 0)
 
+
+
+class TestRenderTemplateBlankLines(unittest.TestCase):
+    """render_template 保留中间空行、去首尾空行。"""
+    V = {'make': 'SONY', 'model': 'ILCE-7M4'}
+
+    def test_middle_blank_line_kept(self):
+        self.assertEqual(photo.render_template('{make} {model}\n\n{focal}', dict(self.V, focal='50mm')),
+                         'SONY ILCE-7M4\n\n50mm')
+
+    def test_multiple_blank_lines_kept(self):
+        self.assertEqual(photo.render_template('{make}\n\n\n{model}', self.V),
+                         'SONY\n\n\nILCE-7M4')
+
+    def test_leading_trailing_blank_removed(self):
+        self.assertEqual(photo.render_template('\n\n{make}\n\n', self.V), 'SONY')
+
+    def test_all_blank_returns_empty(self):
+        self.assertEqual(photo.render_template('\n\n', self.V), '')
+        self.assertEqual(photo.render_template('   \n  ', self.V), '')
+
+    def test_blank_line_increases_watermark_height(self):
+        img = Image.new('RGB', (800, 600), (0, 0, 0))
+        base = {'font_family': '', 'font_size_pct': 3.0, 'anchor': 7,
+                'margin_pct': 5.0, 'offset_x_pct': 0, 'offset_y_pct': 0}
+        v = dict(self.V, focal='50mm', shutter='1/800s')
+        r0 = photo.watermark_rect(img, dict(base, template='{make} {model}\n{focal} {shutter}'), v)
+        r1 = photo.watermark_rect(img, dict(base, template='{make} {model}\n\n{focal} {shutter}'), v)
+        self.assertGreater(r1[3] - r1[1], r0[3] - r0[1])
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

@@ -338,7 +338,13 @@ def render_template(template, values):
         return '' if v is None else str(v)
     out = re.sub(r'\{([a-zA-Z]+)\}', repl, template)
     lines = [l.rstrip() for l in out.split('\n')]
-    lines = [l for l in lines if l.strip()]
+    # 保留中间空行（用户用空行控制行间排版间距）；去掉首尾空行
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    if not any(l.strip() for l in lines):
+        return ''
     return '\n'.join(lines)
 
 # ---------------- 元数据读取 ----------------
