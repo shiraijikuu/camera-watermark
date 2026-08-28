@@ -76,6 +76,7 @@ class PluginAPI:
         self.style_rects = {}     # name -> func(settings, values, size) -> rect|None（插件文字水印矩形）
         self.style_plugin = {}    # name -> 插件名（样式所属，用于读叠加开关设置）
         self.style_overlay = {}   # name -> 叠加开关设置键 | None（None=总是叠加）
+        self.dlc_sources = {}     # plugin_name -> {label, manifest_url, subdir}（DLC 素材源）
         self.export_hooks = []    # [func(img, meta, settings) -> img|None]（导出前处理）
         self.setting_specs = []   # [(plugin_name, key, spec)]（插件设置项）
         self.ui_ready_hooks = []  # [func(app)] 主界面构建完成后回调，插件可向界面添加任意控件
@@ -129,6 +130,34 @@ class PluginAPI:
         """导出钩子：水印绘制后、保存前调用 func(img, meta, settings)，可返回修改后的图像。"""
         if callable(func):
             self.export_hooks.append(func)
+
+    def http_get_json(self, url, timeout=15):
+        """下载 JSON（复用 urllib，带 UA 与超时）。供插件拉取 DLC 清单等。"""
+        import urllib.request
+        import json
+        req = urllib.request.Request(url, headers={'User-Agent': 'PhotoWatermark'})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode('utf-8'))
+
+    def download_file(self, url, save_path, timeout=30):
+        """下载二进制文件到指定路径：先下 .tmp 再原子替换，避免留下半截文件。"""
+        import urllib.request
+        import os as _os
+        _os.makedirs(_os.path.dirname(save_path), exist_ok=True)
+        tmp = save_path + '.tmp'
+        req = urllib.request.Request(url, headers={'User-Agent': 'PhotoWatermark'})
+        with urllib.request.urlopen(req, timeout=timeout) as r, open(tmp, 'wb') as f:
+            f.write(r.read())
+        _os.replace(tmp, save_path)
+        return save_path
+
+    def add_dlc_source(self, plugin_name, label, manifest_url, subdir=''):
+        """插件声明 DLC 素材源：插件设置 gallery 下方出现「下载更多素材」按钮，
+        主程序打开 DLC 素材库窗口（拉清单、按需下载到 plugins/<plugin>/presets/<subdir>/）。"""
+        if plugin_name and manifest_url:
+            self.dlc_sources[plugin_name] = {'label': label or '下载更多素材…',
+                                             'manifest_url': manifest_url,
+                                             'subdir': subdir or ''}
 
     def on_ui_ready(self, func):
         """注册 UI 就绪回调：主程序主界面构建完成后调用 func(app)。
@@ -614,15 +643,19 @@ class PluginManagerWindow:
 
 # ==================== 插件设置窗口 ====================
 class PluginSettingsWindow:
-    def __init__(self, parent):
+    def __init__(self, parent, only=None):
+        """only: 只渲染指定插件（独立设置窗口用）；None=渲染全部插件（原统一窗口）。"""
         self.parent = parent
+        self.only = only
         self.win = tk.Toplevel(parent.root)
-        self.win.title(tr('插件设置'))
+        self.win.title(tr('插件设置') if only is None else ('%s · 设置' % only))
         self.win.geometry(WINDOW_SETTINGS_SIZE)
         self.win.transient(parent.root)
-        self.win.grab_set()
+        if only is None:
+            self.win.grab_set()
         self.parent._notify_window_created(self.win)
         self.widgets = {}
+        self._settings_inner = None
         self._build()
 
     def _build(self):
@@ -638,6 +671,7 @@ class PluginSettingsWindow:
         canvas.configure(yscrollcommand=sb.set)
         canvas.pack(side='left', fill='both', expand=True)
         sb.pack(side='right', fill='y')
+        self._settings_inner = inner
         self._fill(inner)
         self._bind_wheel(canvas, inner)   # 补滚轮滚动（此前只能拖滚动条）
 
@@ -673,6 +707,8 @@ class PluginSettingsWindow:
     def _fill(self, inner):
         vals = self.parent.settings.get('plugin_values', {})
         for pname in PLUGIN_SETTINGS:
+            if self.only is not None and pname != self.only:
+                continue
             grp = ttk.LabelFrame(inner, text=pname)
             grp.pack(fill='x', padx=4, pady=4)
             pvals = vals.get(pname, {})
@@ -736,7 +772,8 @@ class PluginSettingsWindow:
                     for it in opts:
                         lbl = str(it.get('label', ''))
                         ipath = it.get('image')
-                        selected = (lbl == cur)
+                        # 选中判断：优先用 value（相对路径），兼容旧 label
+                        selected = ((it.get('value') or lbl) == cur)
                         tile = tk.Frame(inner, bd=2, relief='solid',
                                         bg='#3b82f6' if selected else '#2a2d3a')
                         tile._wm_keep_bg = True   # 主题插件应保留手动背景（选中态蓝色）
@@ -763,6 +800,12 @@ class PluginSettingsWindow:
                     # 所有 tile pack 完后延迟一帧更新 scrollregion（确保 inner 宽度已算好）
                     canvas.after_idle(_update_scroll)
                     self.widgets[pname][key] = ('gallery', {'tiles': tiles})
+                    # 插件声明了 DLC 素材源 -> gallery 下方加「下载更多素材」按钮
+                    _dlc = PLUGIN_API.dlc_sources.get(pname)
+                    if _dlc:
+                        ttk.Button(gal, text=_dlc.get('label', '下载更多素材…'),
+                                   command=lambda pn=pname, src=_dlc: self._open_dlc_window(pn, src)
+                                   ).pack(side='bottom', pady=4)
                 elif kind == 'range':
                     try:
                         cur_f = float(cur)
@@ -824,9 +867,146 @@ class PluginSettingsWindow:
                 ch.config(bg=bg)
                 ch._wm_keep_bg = True
         lbl = str(item.get('label', ''))
-        val = '' if not item.get('image') else lbl
+        # 存 value（相对路径）优先；无 value 时回退 label（兼容旧插件）
+        val = item.get('value') or ('' if not item.get('image') else lbl)
         self.parent.settings.setdefault('plugin_values', {}).setdefault(pname, {})[key] = val
         self.parent._schedule_preview()
+
+    # ---------- DLC 素材库 ----------
+    def _dlc_record_path(self, pname):
+        return os.path.join(PLUGINS_DIR, pname, 'downloaded.json')
+
+    def _dlc_load_downloaded(self, pname):
+        try:
+            with open(self._dlc_record_path(pname), 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def _dlc_save_downloaded(self, pname, data):
+        try:
+            p = self._dlc_record_path(pname)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    def _open_dlc_window(self, pname, source):
+        """打开 DLC 素材库窗口：拉清单、分类/搜索、按需下载（后台线程）。"""
+        win = tk.Toplevel(self.win)
+        win.title(tr('DLC 素材库'))
+        win.geometry('620x520')
+        self.parent._notify_window_created(win)
+
+        top = ttk.Frame(win); top.pack(fill='x', padx=8, pady=6)
+        ttk.Label(top, text=source.get('brand', '素材库')).pack(side='left')
+        cat_var = tk.StringVar(value='全部')
+        cat_combo = ttk.Combobox(top, textvariable=cat_var, state='readonly', width=8)
+        cat_combo.pack(side='left', padx=6)
+        search_var = tk.StringVar()
+        ttk.Entry(top, textvariable=search_var, width=18).pack(side='left', padx=6)
+
+        body = ttk.Frame(win); body.pack(fill='both', expand=True, padx=8, pady=4)
+        canvas = tk.Canvas(body, highlightthickness=0)
+        sb = ttk.Scrollbar(body, orient='vertical', command=canvas.yview)
+        inner = ttk.Frame(canvas)
+        _wid = canvas.create_window((0, 0), window=inner, anchor='nw')
+        def _upd():
+            try:
+                inner.update_idletasks()
+            except Exception:
+                pass
+            rw, rh = inner.winfo_reqwidth(), inner.winfo_reqheight()
+            if rw > 0:
+                canvas.itemconfigure(_wid, width=rw)
+                canvas.configure(scrollregion=(0, 0, rw, rh))
+        inner.bind('<Configure>', lambda e: _upd())
+        canvas.configure(yscrollcommand=sb.set)
+        canvas.pack(side='left', fill='both', expand=True)
+        sb.pack(side='right', fill='y')
+
+        status = ttk.Label(win, text=tr('加载中…'))
+        status.pack(fill='x', padx=8, pady=4)
+        state = {'data': None}
+
+        def _render_list(*_a):
+            if not state['data']:
+                return
+            for w in inner.winfo_children():
+                w.destroy()
+            cat = cat_var.get()
+            q = search_var.get().strip().lower()
+            for m in state['data'].get('models', []):
+                if cat != '全部' and m.get('category') != cat:
+                    continue
+                if q and q not in m.get('name', '').lower() and q not in m.get('id', '').lower():
+                    continue
+                self._render_dlc_item(inner, pname, source, m, state['data'].get('base_url', ''),
+                                       state['data'].get('brand', ''), win, status)
+            canvas.after_idle(_upd)
+
+        def _load():
+            try:
+                data = PLUGIN_API.http_get_json(source['manifest_url'], timeout=15)
+            except Exception as e:
+                win.after(0, lambda: status.config(text=tr('加载失败: ') + str(e)))
+                return
+            state['data'] = data
+            win.after(0, lambda: (cat_combo.configure(
+                values=data.get('categories') or ['全部']), _render_list()))
+
+        threading.Thread(target=_load, daemon=True).start()
+        cat_var.trace_add('write', _render_list)
+        search_var.trace_add('write', _render_list)
+
+    def _render_dlc_item(self, parent, pname, source, model, base_url, brand, win, status):
+        """渲染单个 DLC 机型行：已下载打勾 + 名称/分类/大小 + 下载按钮。"""
+        fid = str(model.get('id', ''))
+        rec = self._dlc_load_downloaded(pname)
+        downloaded = fid in rec.get(brand, {})
+        row = ttk.Frame(parent); row.pack(fill='x', padx=4, pady=2)
+        ttk.Checkbutton(row, variable=tk.BooleanVar(value=downloaded), state='disabled').pack(side='left')
+        ttk.Label(row, text=str(model.get('name', fid)), width=24).pack(side='left')
+        ttk.Label(row, text=str(model.get('category', '')), width=8, foreground='#888').pack(side='left')
+        size_kb = int(model.get('size', 0)) // 1024
+        ttk.Label(row, text='%d KB' % size_kb, width=8, foreground='#888').pack(side='left')
+
+        if downloaded:
+            ttk.Label(row, text=tr('已下载'), foreground='#2e7d32').pack(side='right', padx=6)
+        else:
+            btn = ttk.Button(row, text=tr('下载'), width=6,
+                             command=lambda: self._dlc_download(pname, source, model, base_url, brand, btn, win, status))
+            btn.pack(side='right', padx=6)
+
+    def _dlc_download(self, pname, source, model, base_url, brand, btn, win, status):
+        """后台线程下载单个 DLC 素材，完成后记录并刷新（下载过程不卡 UI）。"""
+        fid = str(model.get('id', ''))
+        fname = str(model.get('file', ''))
+        save_dir = os.path.join(PLUGINS_DIR, pname, 'presets', source.get('subdir', ''))
+        save_path = os.path.join(save_dir, fname)
+        btn.config(state='disabled', text=tr('下载中…'))
+
+        def _do():
+            try:
+                PLUGIN_API.download_file(base_url + fname, save_path, timeout=30)
+            except Exception as e:
+                win.after(0, lambda: (status.config(text=tr('下载失败: ') + str(e)),
+                                      btn.config(state='normal', text=tr('下载'))))
+                return
+            rec = self._dlc_load_downloaded(pname)
+            rec.setdefault(brand, {})[fid] = {'name': model.get('name', fid), 'file': fname}
+            self._dlc_save_downloaded(pname, rec)
+            win.after(0, lambda: (status.config(text=tr('已下载: ') + str(model.get('name', fid))),
+                                  btn.config(state='disabled', text=tr('已下载'))))
+            # 下载完成后刷新插件设置窗口的 gallery（新预设立即出现，不用重启）
+            if getattr(self, '_settings_inner', None):
+                try:
+                    win.after(100, lambda: self._fill(self._settings_inner))
+                except Exception:
+                    pass
+
+        threading.Thread(target=_do, daemon=True).start()
 
     def save(self):
         vals = self.parent.settings.setdefault('plugin_values', {})
@@ -1127,6 +1307,19 @@ class App:
     # ---------- UI 构建 ----------
     def _build_ui(self):
         root = self.root
+        # 「插件」菜单：每个插件独立设置窗口 + 商店
+        try:
+            menubar = tk.Menu(root)
+            plugin_menu = tk.Menu(menubar, tearoff=0)
+            for _pn in sorted(PLUGIN_SETTINGS):
+                plugin_menu.add_command(label='%s 设置…' % _pn,
+                                        command=lambda pn=_pn: self.open_plugin_settings_one(pn))
+            plugin_menu.add_separator()
+            plugin_menu.add_command(label=tr('插件商店…'), command=self.open_plugin_store)
+            menubar.add_cascade(label=tr('插件'), menu=plugin_menu)
+            root.config(menu=menubar)
+        except Exception:
+            pass
         top = ttk.Frame(root, padding=(8, 6))
         top.pack(fill='x')
         ttk.Button(top, text=tr('选择照片文件夹'), command=self.choose_input).pack(side='left')
@@ -1690,6 +1883,31 @@ class App:
             messagebox.showinfo(tr('插件设置'), tr('当前没有插件注册设置项'))
             return
         PluginSettingsWindow(self)
+
+    def _init_setting_windows(self):
+        if not hasattr(self, '_setting_windows'):
+            self._setting_windows = {}
+
+    def open_plugin_settings_one(self, pname):
+        """独立打开单个插件设置窗口（单例：已打开则提到最前）。"""
+        if pname not in PLUGIN_SETTINGS:
+            return
+        self._init_setting_windows()
+        w = self._setting_windows.get(pname)
+        if w is not None:
+            try:
+                if w.winfo_exists():
+                    w.lift()
+                    w.focus_force()
+                    return
+            except Exception:
+                pass
+        PluginSettingsWindow(self, only=pname)
+        # 记录窗口：找到刚创建的（最新 Toplevel）
+        import tkinter as _tk
+        tops = [x for x in self.root.winfo_children() if isinstance(x, _tk.Toplevel)]
+        if tops:
+            self._setting_windows[pname] = tops[-1]
 
     def open_plugin_store(self):
         PluginStoreWindow(self)

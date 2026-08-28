@@ -97,5 +97,34 @@ class TestImageWmLayout(unittest.TestCase):
 
 
 
+
+
+class TestListPresetsRecursive(unittest.TestCase):
+    """image-watermark _list_presets 递归扫描子目录（DLC 素材）。"""
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util as _u
+        spec = _u.spec_from_file_location('iw', os.path.join(BASE, 'plugin-repos', 'image-watermark', 'plugin.py'))
+        cls.iw = _u.module_from_spec(spec); spec.loader.exec_module(cls.iw)
+
+    def test_scans_subdir(self):
+        import os, shutil, tempfile
+        sub = os.path.join(self.iw.PRESETS_DIR, '_test_dlc')
+        os.makedirs(sub, exist_ok=True)
+        try:
+            shutil.copy2(os.path.join(self.iw.PRESETS_DIR, 'sony_w.png'),
+                         os.path.join(sub, 'dji-air-3.png'))
+            presets = self.iw._list_presets()
+            self.assertTrue(any(p == '_test_dlc/dji-air-3.png' for p in presets),
+                            'subdir preset not scanned!')
+        finally:
+            shutil.rmtree(sub, ignore_errors=True)
+
+    def test_returns_relpath(self):
+        import os
+        presets = self.iw._list_presets()
+        self.assertTrue(presets)
+        self.assertFalse(any(os.path.isabs(p) for p in presets), 'should be relative!')
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
