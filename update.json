@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
   "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v2.0.0/PhotoWatermark-v2.0.0.exe",
-  "note": "v2.0.0: 2.0 style engine + param spacing + overlay switch + logo layout fix + style dropdown fix + template blank-line spacing. / 2.0 样式引擎 + 参数间距 + 叠加开关 + logo 对齐 + 样式下拉修复 + 模板空行排版。",
-  "checksum": "381f9ff8201a19165935871bd0114a4aff6b91b1571ba38f7b72fa33baba275d"
+  "note": "v2.0.0: 2.0 style engine + spacing/blank-line template controls + overlay switch + logo layout fix. / 2.0 样式引擎 + 模板空格/空行控制 + 叠加开关 + logo 对齐修复。",
+  "checksum": "f3c54e2835ff4c0213c94a88b314f9c1afb5fe4948299275e26e2ecdc5fd2bde"
 }
