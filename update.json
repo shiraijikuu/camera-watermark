@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
   "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v2.0.0/PhotoWatermark-v2.0.0.exe",
-  "note": "v2.0.0: 2.0 style engine + gallery scrollbar fix. / 2.0 样式引擎 + 预设图滚动条修复。",
-  "checksum": "9df0f9b425859904f7b35dc1dc7096ef2dee60e87555f8bd6ffdc4a3c1d51697"
+  "note": "v2.0.0: 2.0 style engine + DLC material library + plugin-settings single windows. / 2.0 样式引擎 + DLC 素材库 + 插件设置独立窗口。",
+  "checksum": "181ba2e5710db19136bc280c35be664818ab28ea912c5012d29d5795f1b13e17"
 }
