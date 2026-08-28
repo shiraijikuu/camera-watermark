@@ -151,6 +151,87 @@ class TestRenderWithStyleBranch(unittest.TestCase):
         self.assertEqual(len(self.received), 0)
 
 
+
+
+class TestOverlaySwitch(unittest.TestCase):
+    """blur_card 叠加图片水印开关（overlay_setting）。"""
+    def setUp(self):
+        self._orig_styles = app.PLUGIN_API.styles
+        self._orig_rects = app.PLUGIN_API.style_rects
+        self._orig_plugin = app.PLUGIN_API.style_plugin
+        self._orig_overlay = app.PLUGIN_API.style_overlay
+        app.PLUGIN_API.styles = {}
+        app.PLUGIN_API.style_rects = {}
+        app.PLUGIN_API.style_plugin = {}
+        app.PLUGIN_API.style_overlay = {}
+        self.calls = []
+        def replace_r(img, settings, values, source=None):
+            out = img.copy()
+            out.paste((255, 0, 0), (0, 0, 20, 20))   # 红块 = blur_card 渲染
+            return out
+        def overlay_r(img, settings, values, source=None):
+            self.calls.append('overlay')
+            out = img.copy()
+            out.paste((0, 0, 255), (100, 100, 120, 120))  # 蓝块 = 图片水印
+            return out
+        self.replace_r = replace_r
+        self.overlay_r = overlay_r
+
+    def tearDown(self):
+        app.PLUGIN_API.styles = self._orig_styles
+        app.PLUGIN_API.style_rects = self._orig_rects
+        app.PLUGIN_API.style_plugin = self._orig_plugin
+        app.PLUGIN_API.style_overlay = self._orig_overlay
+
+    def _render(self, ov_on):
+        app.PLUGIN_API.plugin_name = 'blur-card'
+        app.PLUGIN_API.add_watermark_style('blur_card', '模糊卡片', self.replace_r,
+                                           replaces_watermark=True,
+                                           overlay_setting='blur_card_overlay_wm')
+        app.PLUGIN_API.add_watermark_style('imgwm', '图片水印', self.overlay_r)
+        img = Image.new('RGB', (200, 120), (50, 50, 50))
+        settings = {'template': 'X', 'font_family': '', 'style': 'blur_card',
+                    'plugin_values': {'blur-card': {'blur_card_overlay_wm': ov_on}}}
+        return app.App._render_with_style(None, img, settings, {})
+
+    def test_overlay_off_skips(self):
+        out = self._render(False)
+        self.assertEqual(self.calls, [])
+        px = out.load()
+        self.assertEqual(px[5, 5][:3], (255, 0, 0))
+        self.assertNotEqual(px[110, 110][:3], (0, 0, 255))
+
+    def test_overlay_on_overlays(self):
+        out = self._render(True)
+        self.assertEqual(self.calls, ['overlay'])
+        px = out.load()
+        self.assertEqual(px[110, 110][:3], (0, 0, 255))
+
+    def test_overlay_key_missing_default_on(self):
+        # 键缺失时默认 True（向后兼容：总是叠加）
+        app.PLUGIN_API.plugin_name = 'blur-card'
+        app.PLUGIN_API.add_watermark_style('blur_card', '模糊卡片', self.replace_r,
+                                           replaces_watermark=True,
+                                           overlay_setting='blur_card_overlay_wm')
+        app.PLUGIN_API.add_watermark_style('imgwm', '图片水印', self.overlay_r)
+        img = Image.new('RGB', (200, 120), (50, 50, 50))
+        settings = {'template': 'X', 'font_family': '', 'style': 'blur_card',
+                    'plugin_values': {'blur-card': {}}}
+        app.App._render_with_style(None, img, settings, {})
+        self.assertEqual(self.calls, ['overlay'])
+
+    def test_legacy_plugin_always_overlays(self):
+        # 未声明 overlay_setting 的旧插件：replaces 主样式下仍总是叠加
+        app.PLUGIN_API.plugin_name = 'legacy'
+        app.PLUGIN_API.add_watermark_style('old_style', '旧样式', self.replace_r,
+                                           replaces_watermark=True)
+        app.PLUGIN_API.add_watermark_style('imgwm', '图片水印', self.overlay_r)
+        img = Image.new('RGB', (200, 120), (50, 50, 50))
+        settings = {'template': 'X', 'font_family': '', 'style': 'old_style'}
+        app.App._render_with_style(None, img, settings, {})
+        self.assertEqual(self.calls, ['overlay'])
+
+
 class TestBlurCardPlugin(unittest.TestCase):
     # 插件按项目惯例独立仓库交付；主仓库 clone 后 plugins/blur-card 可能不存在，
     # 此时跳过插件行为测试（主程序 API 兼容测试始终执行）。

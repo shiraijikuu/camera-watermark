@@ -74,6 +74,8 @@ class PluginAPI:
         self.presets = {}         # name -> template（模板预设）
         self.styles = {}          # name -> (label, renderer)（自定义水印样式）
         self.style_rects = {}     # name -> func(settings, values, size) -> rect|None（插件文字水印矩形）
+        self.style_plugin = {}    # name -> 插件名（样式所属，用于读叠加开关设置）
+        self.style_overlay = {}   # name -> 叠加开关设置键 | None（None=总是叠加）
         self.export_hooks = []    # [func(img, meta, settings) -> img|None]（导出前处理）
         self.setting_specs = []   # [(plugin_name, key, spec)]（插件设置项）
         self.ui_ready_hooks = []  # [func(app)] 主界面构建完成后回调，插件可向界面添加任意控件
@@ -102,7 +104,8 @@ class PluginAPI:
         if name and isinstance(template, str):
             self.presets[name] = template
 
-    def add_watermark_style(self, name, label, renderer, replaces_watermark=False, rect_func=None):
+    def add_watermark_style(self, name, label, renderer, replaces_watermark=False,
+                            rect_func=None, overlay_setting=None):
         """新增水印样式。
         renderer(img, settings, values, source=None) 返回绘制后的 PIL 图像。
           - replaces_watermark=False（默认）：兼容型。先画默认文字水印，
@@ -112,11 +115,15 @@ class PluginAPI:
           - rect_func(settings, values, size) -> (x0,y0,x1,y1)|None 可选：返回该样式
             文字水印矩形（图像坐标，应含当前 offset），供主程序拖拽命中检测；
             未提供时主程序回退 photo.watermark_rect（默认文字水印布局）。
+          - overlay_setting: 整图重绘型主样式可选。声明"是否叠加兼容型叠加样式"
+            由 plugin_values[本插件][该键]（bool）控制；None=总是叠加（现状）。
         兼容旧插件：3 参调用时 replaces 默认 False、rect_func 缺省 None，行为不变。"""
         if name and callable(renderer):
             # 关键：统一存三元组，避免旧插件二元组导致 _render_with_style 解包崩溃
             self.styles[name] = (label, renderer, bool(replaces_watermark))
             self.style_rects[name] = rect_func if callable(rect_func) else None
+            self.style_plugin[name] = getattr(self, 'plugin_name', '')
+            self.style_overlay[name] = overlay_setting if isinstance(overlay_setting, str) else None
 
     def on_export(self, func):
         """导出钩子：水印绘制后、保存前调用 func(img, meta, settings)，可返回修改后的图像。"""
@@ -243,7 +250,7 @@ TEMPLATE_PRESETS = dict(BASE_TEMPLATE_PRESETS)
 _rebuild_presets()
 
 
-_NUM_KEYS = ('font_size_pct', 'line_spacing', 'text_opacity', 'offset_x_pct', 'offset_y_pct',
+_NUM_KEYS = ('font_size_pct', 'line_spacing', 'word_spacing', 'text_opacity', 'offset_x_pct', 'offset_y_pct',
               'margin_pct', 'bg_opacity', 'bg_padding', 'outline_width', 'shadow_blur', 'jpeg_quality')
 
 def load_config():
@@ -1287,6 +1294,16 @@ class App:
         self.spacing_label = ttk.Label(row, text='', width=5)
         self.spacing_label.pack(side='left')
 
+        row = ttk.Frame(f); row.pack(fill='x', pady=2)
+        ttk.Label(row, text=tr('参数间距')).pack(side='left')
+        self.word_spacing_var = tk.DoubleVar()
+        ttk.Scale(row, from_=0, to=3, variable=self.word_spacing_var,
+                  command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
+        _add_scale_entry(row, self.word_spacing_var, 0, 3,
+                         lambda v: self._on_change(), fmt='%.2f').pack(side='left', padx=(0, 4))
+        self.word_spacing_label = ttk.Label(row, text='', width=5)
+        self.word_spacing_label.pack(side='left')
+
         row = ttk.Frame(f); row.pack(fill='x', pady=4)
         ttk.Label(row, text=tr('文字颜色')).pack(side='left')
         self.text_color_btn = ttk.Button(row, text=tr('选择颜色'), command=self.pick_text_color)
@@ -1443,6 +1460,7 @@ class App:
         self.bold_var.set(bool(s.get('bold')))
         self.size_var.set(s.get('font_size_pct', 2.2))
         self.spacing_var.set(s.get('line_spacing', 0.35))
+        self.word_spacing_var.set(s.get('word_spacing', 0.0))
         self.text_opacity_var.set(s.get('text_opacity', 1.0))
         self.anchor_var.set(s.get('anchor', 7))
         self.ox_var.set(s.get('offset_x_pct', 0))
@@ -1539,6 +1557,7 @@ class App:
         s['bold'] = bool(self.bold_var.get())
         s['font_size_pct'] = float(self.size_var.get())
         s['line_spacing'] = float(self.spacing_var.get())
+        s['word_spacing'] = float(self.word_spacing_var.get())
         s['text_opacity'] = float(self.text_opacity_var.get())
         s['anchor'] = int(self.anchor_var.get())
         s['offset_x_pct'] = float(self.ox_var.get())
@@ -1564,6 +1583,7 @@ class App:
     def _update_labels(self):
         self.size_label.config(text='%.1f' % float(self.size_var.get()))
         self.spacing_label.config(text='%.2f' % float(self.spacing_var.get()))
+        self.word_spacing_label.config(text='%.2f' % float(self.word_spacing_var.get()))
         self.opacity_label.config(text='%.2f' % float(self.text_opacity_var.get()))
         self.ox_label.config(text='%+.1f' % float(self.ox_var.get()))
         self.oy_label.config(text='%+.1f' % float(self.oy_var.get()))
@@ -1693,18 +1713,25 @@ class App:
                 res = _call_style_renderer(renderer, wm, settings, values, img)
             if res is not None:
                 out = res
-            # 整图重绘型主样式（如模糊卡片）：再叠加兼容型叠加样式（如图片水印/品牌 logo）。
-            # 这样「模糊卡片 + 品牌 logo」可共存：图片水印有大小/位置滑块，
-            # 且叠在文字水印上层（renderer 在带水印图上叠加）。
+            # 整图重绘型主样式（如模糊卡片）：按插件声明决定是否叠加兼容型叠加样式
+            #（如图片水印/品牌 logo）。插件可提供 overlay_setting 开关（默认关），
+            # 让"模糊卡片 + logo"变成可选；未声明的旧插件总是叠加（兼容）。
             if replaces2 and apply_style:
-                for _sname, (_l2, _r2, _rep2) in PLUGIN_API.styles.items():
-                    if not _rep2:
-                        try:
-                            _res = _call_style_renderer(_r2, out, settings, values, out)
-                            if _res is not None:
-                                out = _res
-                        except Exception:
-                            pass
+                ov_on = True
+                ovkey = PLUGIN_API.style_overlay.get(style)
+                if ovkey:
+                    _pn = PLUGIN_API.style_plugin.get(style, '')
+                    ov_on = bool((settings.get('plugin_values') or {}).get(_pn, {})
+                                 .get(ovkey, True))
+                if ov_on:
+                    for _sname, (_l2, _r2, _rep2) in PLUGIN_API.styles.items():
+                        if not _rep2:
+                            try:
+                                _res = _call_style_renderer(_r2, out, settings, values, out)
+                                if _res is not None:
+                                    out = _res
+                            except Exception:
+                                pass
         return out
 
     def _apply_export_hooks(self, img, meta, settings):

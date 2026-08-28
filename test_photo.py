@@ -191,5 +191,39 @@ class TestCroppedWatermark(unittest.TestCase):
         px = out.load()
         self.assertEqual(px[50, 40], (40, 40, 40), '水印在窗口外时不应绘制')
 
+
+
+class TestWordSpacing(unittest.TestCase):
+    """参数间距（word_spacing）：>0 时 block 变宽、按 token 绘制；=0 时与旧版一致。"""
+    BASE = {'template': '{make} {model} {focal} {shutter}', 'font_family': '',
+            'font_size_pct': 3.0, 'anchor': 7, 'margin_pct': 5.0,
+            'offset_x_pct': 0, 'offset_y_pct': 0}
+    V = {'make': 'SONY', 'model': 'ILCE-7M4', 'focal': '50mm', 'shutter': '1/800s'}
+
+    def _rect(self, ws):
+        img = Image.new('RGB', (800, 600), (0, 0, 0))
+        return photo.watermark_rect(img, dict(self.BASE, word_spacing=ws), dict(self.V))
+
+    def test_spacing_widens_block(self):
+        r0 = self._rect(0)
+        r2 = self._rect(2.0)
+        self.assertGreater(r2[2] - r2[0], r0[2] - r0[0])
+
+    def test_zero_unchanged(self):
+        # ws=0 渲染像素级与旧版（无 word_spacing 键）一致
+        img = Image.new('RGB', (800, 600), (0, 0, 0))
+        a = photo.render_watermark(img, dict(self.BASE, word_spacing=0), dict(self.V))
+        b = photo.render_watermark(img, dict(self.BASE), dict(self.V))
+        self.assertEqual(list(a.getdata()), list(b.getdata()))
+
+    def test_spacing_renders_tokens(self):
+        img = Image.new('RGB', (800, 600), (0, 0, 0))
+        out = photo.render_watermark(img, dict(self.BASE, word_spacing=2.0), dict(self.V))
+        self.assertEqual(out.size, (800, 600))
+        px = out.load()
+        non_bg = sum(1 for y in range(0, 600, 4) for x in range(0, 800, 4)
+                     if px[x, y][:3] != (0, 0, 0))
+        self.assertGreater(non_bg, 0)
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

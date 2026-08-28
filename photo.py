@@ -563,10 +563,23 @@ def _watermark_layout(img, settings, values, fonts_dir=None, full_size=None):
             return None
     ascent, descent = font.getmetrics()
     line_h = int((ascent + descent) * (1 + settings.get('line_spacing', 0.35)))
+    ws = float(settings.get('word_spacing', 0.0))     # 参数间距（×字号），0=仅模板空格
+    spacing_px = int(fs * ws) if ws > 0 else 0
     widths = []
     for l in lines:
-        b = font.getbbox(l)
-        widths.append(max(0, b[2] - b[0]))
+        if spacing_px > 0:
+            # 按 token 拆分：相邻参数间额外拉开 spacing_px
+            toks = [t for t in l.split() if t]
+            if len(toks) > 1:
+                w = sum(max(0, font.getbbox(t)[2] - font.getbbox(t)[0]) for t in toks)
+                w += spacing_px * (len(toks) - 1)
+            else:
+                b = font.getbbox(l)
+                w = max(0, b[2] - b[0])
+        else:
+            b = font.getbbox(l)
+            w = max(0, b[2] - b[0])
+        widths.append(w)
     block_w = max(widths) if widths else 0
     block_h = line_h * len(lines)
     padding = int(fs * settings.get('bg_padding', 0.6))
@@ -652,10 +665,27 @@ def render_watermark(img, settings, values, fonts_dir=None, full_size=None, orig
     tx = padding + dx
     ty = padding + dy
 
+    # 参数间距（×字号）：>0 时按 token 拆分绘制，相邻参数间额外拉开
+    _ws = float(settings.get('word_spacing', 0.0))
+    _spacing_px = int(fs * _ws) if _ws > 0 else 0
+
+    def _draw_line(od, txt, x, y, fill, stroke_w=0, stroke_fill=None):
+        if _spacing_px > 0:
+            toks = [t for t in txt.split() if t]
+            xx = x
+            for t in toks:
+                od.text((xx, y), t, font=font, fill=fill,
+                        stroke_width=stroke_w, stroke_fill=stroke_fill)
+                xx += (font.getbbox(t)[2] - font.getbbox(t)[0]) + _spacing_px
+        else:
+            od.text((x, y), txt, font=font, fill=fill,
+                    stroke_width=stroke_w, stroke_fill=stroke_fill)
+
     if settings.get('shadow_enabled'):
         blur = max(1, int(fs * float(settings.get('shadow_blur', 0.15))))
         for li, l in enumerate(lines):
-            od.text((tx + blur // 2, ty + li * line_h + blur // 2), l, font=font, fill=(0, 0, 0, alpha))
+            _draw_line(od, l, tx + blur // 2, ty + li * line_h + blur // 2,
+                       (0, 0, 0, alpha))
 
     stroke_w = 0
     stroke_fill = None
@@ -664,8 +694,8 @@ def render_watermark(img, settings, values, fonts_dir=None, full_size=None, orig
         stroke_fill = _hex_to_rgb(settings.get('outline_color', '#000000'), (0, 0, 0))
 
     for li, l in enumerate(lines):
-        od.text((tx, ty + li * line_h), l, font=font, fill=(rr, gg, bb, alpha),
-                stroke_width=stroke_w, stroke_fill=stroke_fill)
+        _draw_line(od, l, tx, ty + li * line_h, (rr, gg, bb, alpha),
+                   stroke_w=stroke_w, stroke_fill=stroke_fill)
 
     patch = Image.alpha_composite(patch, layer).convert('RGB')
     img.paste(patch, (cx0, cy0))
@@ -771,6 +801,7 @@ DEFAULT_SETTINGS = {
     'text_color': '#ffffff',
     'text_opacity': 1.0,
     'line_spacing': 0.35,
+    'word_spacing': 0.0,
     'anchor': 7,
     'offset_x_pct': 0.0,
     'offset_y_pct': 0.0,
