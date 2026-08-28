@@ -258,12 +258,11 @@ class TestBlurCardPlugin(unittest.TestCase):
         # 全黑原图 + 16:9 前景：前景矩形区域内无接近白色像素（水印只在模糊背景）。
         # 关闭描边/阴影/品牌Logo 排除装饰干扰；前景框按 v2 布局（fy = H*0.06）计算。
         img = Image.new('RGB', (800, 600), (0, 0, 0))
-        s = {'blur_card_ratio': '16:9', 'blur_card_fg_scale': 72,
-             'blur_card_bg_blur': 0, 'blur_card_darken': 0,
-             'blur_card_round': 0, 'blur_card_shadow': False,
-             'blur_card_outline': False,
-             'blur_card_wm_pos': 'below', 'template': '{make} {model}',
-             'font_family': '', 'font_size_pct': 3.0}
+        s = {'template': '{make} {model}', 'font_family': '', 'font_size_pct': 3.0,
+             'plugin_values': {'blur-card': {'blur_card_ratio': '16:9', 'blur_card_fg_scale': 72,
+                                             'blur_card_round': 0, 'blur_card_shadow': False,
+                                             'blur_card_outline': False, 'blur_card_bg_blur': 0,
+                                             'blur_card_darken': 0}}}
         out = self.mod._render(img, s, {'make': 'NIKON', 'model': 'D3200'}, source=img)
         # v2: box_w = 800*0.72 = 576, box_h = 576/(16/9) = 324, fy = 600*0.06 = 36
         box_w = int(800 * 0.72)
