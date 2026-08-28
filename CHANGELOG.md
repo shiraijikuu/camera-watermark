@@ -20,6 +20,10 @@
 - 相机品牌 logo 预设（10 品牌 × 白/透明版，2048px）加入图片水印插件（canon/sony/nikon/fujifilm/
   hasselblad/leica/olympus/panasonic/pentax/ricoh），可与文字水印同屏叠加
 - 主程序预加载 PIL.ImageEnhance，确保打包版 exe 内运行时加载的插件可用
+- UI 重构为三栏布局（左=照片列表 / 中=预览 / 右=水印参数），顶部输入/输出分组、底部状态栏
+- 主题系统升级：8 套精选配色 + 跟随系统（theme-switcher v2.0.0），修复黑夜模式菜单栏白底、
+  三栏语义色、竖排 Notebook、hover 色阶、一次性轻动效
+- 「导出」tab 插件设置改为下拉：逐插件独立设置窗 + 汇总窗兜底；顶部「插件」菜单列出各插件
 
 ---
 ## [1.9.0] - 2026-08-27

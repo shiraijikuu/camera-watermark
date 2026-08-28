@@ -37,8 +37,8 @@ MAX_EXTRACT_FILES = 2000                # 单次解压文件数量上限
 WINDOW_MANAGER_SIZE = '640x360'
 WINDOW_SETTINGS_SIZE = '560x460'
 WINDOW_STORE_SIZE = '680x460'
-WINDOW_MAIN_SIZE = '1380x860'
-WINDOW_MAIN_MIN = (1100, 700)
+WINDOW_MAIN_SIZE = '1440x900'
+WINDOW_MAIN_MIN = (1180, 720)
 
 # 网络超时（秒）
 TIMEOUT_STORE_LOAD = 25
@@ -1307,9 +1307,11 @@ class App:
     # ---------- UI 构建 ----------
     def _build_ui(self):
         root = self.root
-        # 「插件」菜单：每个插件独立设置窗口 + 商店
+
+        # ===== 菜单栏（保存 self.menubar，供主题插件深色化，修复 P1）=====
         try:
             menubar = tk.Menu(root)
+            self.menubar = menubar
             plugin_menu = tk.Menu(menubar, tearoff=0)
             for _pn in sorted(PLUGIN_SETTINGS):
                 plugin_menu.add_command(label='%s 设置…' % _pn,
@@ -1319,87 +1321,91 @@ class App:
             menubar.add_cascade(label=tr('插件'), menu=plugin_menu)
             root.config(menu=menubar)
         except Exception:
-            pass
-        top = ttk.Frame(root, padding=(8, 6))
-        top.pack(fill='x')
-        ttk.Button(top, text=tr('选择照片文件夹'), command=self.choose_input).pack(side='left')
+            self.menubar = None
+
+        # ===== 顶部工具栏：输入组 / 输出组（分组、间距统一）=====
+        toolbar = ttk.Frame(root, padding=(10, 8, 10, 6))
+        toolbar.pack(fill='x')
+        in_group = ttk.Frame(toolbar)
+        in_group.pack(side='left')
+        ttk.Button(in_group, text=tr('选择照片文件夹'), command=self.choose_input).pack(side='left')
         self.folder_var = tk.StringVar(value=tr('未选择文件夹'))
-        ttk.Label(top, textvariable=self.folder_var, foreground='#666').pack(side='left', padx=8)
-        ttk.Button(top, text=tr('选择输出文件夹'), command=self.choose_output).pack(side='left', padx=(16, 2))
+        ttk.Label(in_group, textvariable=self.folder_var, foreground='#8a91ad',
+                  width=16, anchor='w').pack(side='left', padx=8)
+        ttk.Button(in_group, text=tr('选择输出文件夹'), command=self.choose_output).pack(side='left', padx=(8, 2))
         self.output_var = tk.StringVar(value='')
-        ttk.Label(top, textvariable=self.output_var, foreground='#666').pack(side='left', padx=6)
-        ttk.Button(top, text=tr('打开输出文件夹'), command=self.open_output).pack(side='left')
+        ttk.Label(in_group, textvariable=self.output_var, foreground='#8a91ad',
+                  width=14, anchor='w').pack(side='left', padx=6)
+        ttk.Button(in_group, text=tr('打开输出文件夹'), command=self.open_output).pack(side='left')
 
+        # ===== 三栏：左=照片列表 / 中=预览 / 右=水印参数 =====
         paned = ttk.Panedwindow(root, orient='horizontal')
-        paned.pack(fill='both', expand=True, padx=8, pady=(0, 4))
+        paned.pack(fill='both', expand=True, padx=10, pady=(0, 6))
 
-        left = ttk.Frame(paned)
+        # ---------- 左栏：照片列表（固定初始宽，可拖拽）----------
+        left = ttk.Frame(paned, width=264)
         paned.add(left, weight=1)
-        bar = ttk.Frame(left)
-        bar.pack(fill='x')
+
+        head = ttk.Frame(left)
+        head.pack(fill='x', pady=(0, 4))
         self.count_var = tk.StringVar(value=tr('0 张'))
-        ttk.Label(bar, textvariable=self.count_var).pack(side='left')
-        ttk.Button(bar, text=tr('全选'), command=lambda: self.set_all_checked(True)).pack(side='right', padx=2)
-        ttk.Button(bar, text=tr('全不选'), command=lambda: self.set_all_checked(False)).pack(side='right', padx=2)
-        # 搜索 / 排序 / 筛选 工具行
+        ttk.Label(head, textvariable=self.count_var).pack(side='left')
+        ttk.Button(head, text=tr('全选'), command=lambda: self.set_all_checked(True)).pack(side='right', padx=2)
+        ttk.Button(head, text=tr('全不选'), command=lambda: self.set_all_checked(False)).pack(side='right', padx=2)
+
         fbar = ttk.Frame(left)
-        fbar.pack(fill='x', pady=(4, 2))
-        ttk.Label(fbar, text=tr('搜索')).pack(side='left')
+        fbar.pack(fill='x', pady=(0, 4))
         self.search_var = tk.StringVar()
         self.search_var.trace_add('write', lambda *a: self._rebuild_list())
-        ttk.Entry(fbar, textvariable=self.search_var, width=12).pack(side='left', fill='x', expand=True, padx=4)
+        ttk.Entry(fbar, textvariable=self.search_var).pack(side='left', fill='x', expand=True)
         self.sort_var = tk.StringVar(value=tr('文件名'))
         self.sort_var.trace_add('write', lambda *a: self._rebuild_list())
-        ttk.Combobox(fbar, textvariable=self.sort_var, values=[tr('文件名'), tr('拍摄时间'), tr('相机')],
-                     state='readonly', width=9).pack(side='left', padx=2)
+        ttk.Combobox(fbar, textvariable=self.sort_var,
+                     values=[tr('文件名'), tr('拍摄时间'), tr('相机')],
+                     state='readonly', width=8).pack(side='left', padx=(4, 2))
         self.filter_var = tk.StringVar(value=tr('全部'))
         self.filter_var.trace_add('write', lambda *a: self._rebuild_list())
         ttk.Combobox(fbar, textvariable=self.filter_var, values=[tr('全部'), 'RAW', 'JPG'],
-                     state='readonly', width=6).pack(side='left', padx=2)
+                     state='readonly', width=5).pack(side='left')
 
+        tree_wrap = ttk.Frame(left)
+        tree_wrap.pack(fill='both', expand=True)
         self._thumbs = {}
         self._thumb_placeholder = None
         cols = ('check', 'name', 'camera', 'shutter', 'aperture', 'iso', 'size')
-        self.tree = ttk.Treeview(left, columns=cols, show='tree headings', selectmode='browse')
+        self.tree = ttk.Treeview(tree_wrap, columns=cols, show='tree headings', selectmode='browse')
         heads = {'check': '✓', 'name': '文件名', 'camera': '相机', 'shutter': '快门',
                  'aperture': '光圈', 'iso': 'ISO', 'size': '尺寸'}
-        widths = {'check': 34, 'name': 150, 'camera': 130, 'shutter': 70, 'aperture': 60, 'iso': 70, 'size': 90}
+        widths = {'check': 34, 'name': 130, 'camera': 110, 'shutter': 60,
+                  'aperture': 50, 'iso': 55, 'size': 70}
         self.tree.heading('#0', text=tr('缩略图'))
-        self.tree.column('#0', width=36, minwidth=36, stretch=False, anchor='center')
+        self.tree.column('#0', width=34, minwidth=34, stretch=False, anchor='center')
         for c in cols:
             self.tree.heading(c, text=tr(heads[c]))
             self.tree.column(c, width=widths[c], anchor=('center' if c == 'check' else 'w'),
                              stretch=(c in ('name', 'camera')))
-        sb = ttk.Scrollbar(left, orient='vertical', command=self.tree.yview)
+        sb = ttk.Scrollbar(tree_wrap, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
         self.tree.pack(side='left', fill='both', expand=True)
         sb.pack(side='right', fill='y')
         self.tree.bind('<<TreeviewSelect>>', self._on_select)
         self.tree.bind('<Button-1>', self._on_tree_click)
 
-        right = ttk.Frame(paned)
-        paned.add(right, weight=3)
-        zoom_bar = ttk.Frame(right)
-        zoom_bar.pack(fill='x')
+        # ---------- 中栏：预览（最大化）----------
+        center = ttk.Frame(paned)
+        paned.add(center, weight=4)
         self.preview_scale = 'fit'
         self._view_x = 0
         self._view_y = 0
         self.compare_mode = False
-        ttk.Button(zoom_bar, text=tr('适应窗口'), command=lambda: self._set_zoom('fit')).pack(side='left')
-        ttk.Button(zoom_bar, text='100%', command=lambda: self._set_zoom(1.0)).pack(side='left', padx=2)
-        ttk.Button(zoom_bar, text='200%', command=lambda: self._set_zoom(2.0)).pack(side='left', padx=2)
-        # 缩放滑块（25%~400%，连续）+ 当前百分比（与滚轮/按钮双向同步）
-        self.zoom_var = tk.DoubleVar(value=100.0)
-        self._zoom_slider_guard = False
-        ttk.Scale(zoom_bar, from_=25, to=400, variable=self.zoom_var,
-                  command=self._on_zoom_slider).pack(side='left', padx=(10, 2))
-        self.zoom_label = ttk.Label(zoom_bar, text='100%', width=6)
-        self.zoom_label.pack(side='left')
-        self.compare_btn = ttk.Button(zoom_bar, text=tr('按住对比原图'))
-        self.compare_btn.pack(side='left', padx=8)
-        self.compare_btn.bind('<ButtonPress-1>', lambda e: self._set_compare(True))
-        self.compare_btn.bind('<ButtonRelease-1>', lambda e: self._set_compare(False))
-        self.canvas = tk.Canvas(right, bg='#111', highlightthickness=0)
+
+        # 底部信息条先 pack(side=bottom)，避免被 expand 的 canvas 挤掉
+        infobar = ttk.Frame(center)
+        infobar.pack(side='bottom', fill='x')
+        self.meta_var = tk.StringVar(value='')
+        ttk.Label(infobar, textvariable=self.meta_var, foreground='#8a91ad').pack(side='left')
+
+        self.canvas = tk.Canvas(center, bg='#12131b', highlightthickness=0)
         self.canvas.pack(fill='both', expand=True)
         self.canvas.bind('<ButtonPress-1>', self._wm_press)
         self.canvas.bind('<B1-Motion>', self._wm_drag)
@@ -1412,18 +1418,43 @@ class App:
         self._pan_y = 0
         self._drag_start = (0, 0)
         self._pan_start = (0, 0)
-        self.meta_var = tk.StringVar(value='')
-        ttk.Label(right, textvariable=self.meta_var, foreground='#555').pack(fill='x')
 
-        nb = ttk.Notebook(right)
-        nb.pack(fill='x', pady=(4, 0))
+        # 浮动缩放工具条：place 叠在预览顶部居中（不占整行高度）
+        zoom_bar = ttk.Frame(center)
+        zoom_bar.place(relx=0.5, rely=0.0, y=8, anchor='n')
+        ttk.Button(zoom_bar, text=tr('适应窗口'), command=lambda: self._set_zoom('fit')).pack(side='left')
+        ttk.Button(zoom_bar, text='100%', command=lambda: self._set_zoom(1.0)).pack(side='left', padx=2)
+        ttk.Button(zoom_bar, text='200%', command=lambda: self._set_zoom(2.0)).pack(side='left', padx=2)
+        self.zoom_var = tk.DoubleVar(value=100.0)
+        self._zoom_slider_guard = False
+        ttk.Scale(zoom_bar, from_=25, to=400, variable=self.zoom_var,
+                  command=self._on_zoom_slider, length=120).pack(side='left', padx=(8, 2))
+        self.zoom_label = ttk.Label(zoom_bar, text='100%', width=6)
+        self.zoom_label.pack(side='left')
+        self.compare_btn = ttk.Button(zoom_bar, text=tr('按住对比原图'))
+        self.compare_btn.pack(side='left', padx=8)
+        self.compare_btn.bind('<ButtonPress-1>', lambda e: self._set_compare(True))
+        self.compare_btn.bind('<ButtonRelease-1>', lambda e: self._set_compare(False))
+
+        # ---------- 右栏：水印参数（竖排 Notebook；无主题插件时自动回退为顶部横排）----------
+        right = ttk.Frame(paned, width=320)
+        paned.add(right, weight=1)
+        try:
+            nb = ttk.Notebook(right, style='Vertical.TNotebook')
+        except Exception:
+            nb = ttk.Notebook(right)
+        nb.pack(fill='both', expand=True)
         self._build_text_tab(nb)
         self._build_style_tab(nb)
         self._build_position_tab(nb)
         self._build_bg_tab(nb)
         self._build_export_tab(nb)
+        # 切到「导出」tab 时刷新插件设置下拉（新装插件即时出现，无需重启）
+        nb.bind('<<NotebookTabChanged>>', lambda e: self._rebuild_plugin_settings_menu())
+        self.nb = nb
 
-        bottom = ttk.Frame(root, padding=(8, 4))
+        # ===== 底部状态栏：操作 | 进度 | 状态 + 主题挂载位 =====
+        bottom = ttk.Frame(root, padding=(10, 6))
         bottom.pack(fill='x')
         self.btn_export = ttk.Button(bottom, text=tr('导出水印照片'), command=self.do_export)
         self.btn_export.pack(side='left')
@@ -1431,12 +1462,15 @@ class App:
         self.btn_cancel.pack(side='left', padx=6)
         self.btn_open_out = ttk.Button(bottom, text=tr('打开输出文件夹'), command=self.open_output, state='disabled')
         self.btn_open_out.pack(side='left', padx=6)
+
+        # 右侧先占位：主题挂载槽 + 状态文字（都 side=right，先放最右）
+        self.theme_slot = ttk.Frame(bottom)
+        self.theme_slot.pack(side='right')
+        self.status_var = tk.StringVar(value=tr('就绪'))
+        ttk.Label(bottom, textvariable=self.status_var).pack(side='right', padx=10)
+
         self.progress = ttk.Progressbar(bottom, mode='determinate')
         self.progress.pack(side='left', fill='x', expand=True, padx=8)
-        self.status_var = tk.StringVar(value=tr('就绪'))
-        ttk.Label(bottom, textvariable=self.status_var).pack(side='left')
-
-
     def _build_text_tab(self, nb):
         f = ttk.Frame(nb, padding=8)
         nb.add(f, text=tr('水印文字'))
@@ -1645,7 +1679,11 @@ class App:
         row2 = ttk.Frame(f)
         row2.pack(fill='x', pady=2)
         ttk.Button(row2, text=tr('插件管理'), command=self.open_plugin_manager).pack(side='left')
-        ttk.Button(row2, text=tr('插件设置'), command=self.open_plugin_settings).pack(side='left', padx=6)
+        self.plugin_settings_mb = ttk.Menubutton(row2, text=tr('插件设置 ▾'))
+        self.plugin_settings_mb.pack(side='left', padx=6)
+        self.plugin_settings_mb.menu = tk.Menu(self.plugin_settings_mb, tearoff=0)
+        self.plugin_settings_mb['menu'] = self.plugin_settings_mb.menu
+        self._rebuild_plugin_settings_menu()
         ttk.Button(row2, text=tr('插件商店'), command=self.open_plugin_store).pack(side='left', padx=6)
         ttk.Button(row2, text=tr('检查更新'), command=self.check_update).pack(side='left', padx=6)
         ttk.Label(row2, text=tr('当前版本 v') + APP_VERSION, foreground='#888').pack(side='left', padx=6)
@@ -1883,6 +1921,23 @@ class App:
             messagebox.showinfo(tr('插件设置'), tr('当前没有插件注册设置项'))
             return
         PluginSettingsWindow(self)
+
+    def _rebuild_plugin_settings_menu(self):
+        """重建「导出」tab 的插件设置下拉：逐插件开独立窗 + 汇总窗兜底。"""
+        mb = getattr(self, 'plugin_settings_mb', None)
+        if mb is None:
+            return
+        m = mb.menu
+        try:
+            m.delete(0, 'end')
+            for pn in sorted(PLUGIN_SETTINGS):
+                m.add_command(label='%s 设置…' % pn,
+                              command=lambda x=pn: self.open_plugin_settings_one(x))  # x=pn 闭包绑定
+            if PLUGIN_SETTINGS:
+                m.add_separator()
+            m.add_command(label=tr('全部插件设置（汇总）'), command=self.open_plugin_settings)
+        except Exception:
+            pass
 
     def _init_setting_windows(self):
         if not hasattr(self, '_setting_windows'):
