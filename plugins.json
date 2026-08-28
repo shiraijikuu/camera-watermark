@@ -22,20 +22,20 @@
     {
       "id": "theme-switcher",
       "name": "Theme Switcher",
-      "description": "主题切换：黑夜模式 / 白天模式 / 跟随系统（实时生效）",
+      "description": "主题切换：8 套精选配色（深夜蓝/纯黑/石墨/深林/紫晶/摩卡/亮白/暖米白）+ 跟随系统，菜单栏深色化、竖排标签、轻动效",
       "author": "shiraijikuu",
       "repo": "shiraijikuu/PhotoWatermark-theme-switcher",
       "license": "MIT",
-      "version": "1.0.4",
+      "version": "2.0.0",
       "tags": [
         "theme",
         "ui",
         "dark-mode",
         "light-mode"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-theme-switcher/releases/download/v1.0.4/PhotoWatermark-theme-switcher-v1.0.4.zip",
-      "checksum": "9f228e0e0da2a54898b5504bd4ffdcbfd83b148b34a3be6115cb97945412c9dc",
-      "updated_at": "2026-08-27"
+      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-theme-switcher/releases/download/v2.0.0/PhotoWatermark-theme-switcher-v2.0.0.zip",
+      "checksum": "67533b7f63bb8e8c965bf15dce0c8abf3e2d4b33e9ba6d9a8d9682a8de884e37",
+      "updated_at": "2026-08-29"
     },
     {
       "id": "blur-card",
