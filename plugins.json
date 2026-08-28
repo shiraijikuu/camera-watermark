@@ -4,20 +4,20 @@
     {
       "id": "image-watermark",
       "name": "Image Watermark",
-      "description": "图片水印插件：支持 1-5 个图片水印同时叠加（各自独立大小/位置/旋转/透明度），10 相机品牌 logo 预设，水印 1 可与文字对齐，图片缓存，RAW 自动跳过",
+      "description": "图片水印插件：1-5 个图片水印叠加、10 相机品牌 logo 预设、DLC 素材库（按需下载更多水印）、预设递归扫描、图片缓存，RAW 自动跳过",
       "author": "shiraijikuu",
       "repo": "shiraijikuu/PhotoWatermark-image-watermark",
       "license": "MIT",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "tags": [
         "watermark",
         "image",
         "gif",
         "logo"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.3.0/PhotoWatermark-image-watermark-v1.3.0.zip",
-      "checksum": "b53bdf97c0a70911e90a8050f382965531091ad960d10c57cf1f8c911e6cac01",
-      "updated_at": "2026-08-28"
+      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.4.0/PhotoWatermark-image-watermark-v1.4.0.zip",
+      "checksum": "c8dddc322b112ee67eda7c41368932906aa5cbb0a59cc7bb4bac14f0c8d6523c",
+      "updated_at": "2026-08-29"
     },
     {
       "id": "theme-switcher",
