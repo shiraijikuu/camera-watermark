@@ -255,5 +255,24 @@ class TestRenderTemplateBlankLines(unittest.TestCase):
         r1 = photo.watermark_rect(img, dict(base, template='{make} {model}\n\n{focal} {shutter}'), v)
         self.assertGreater(r1[3] - r1[1], r0[3] - r0[1])
 
+
+
+class TestRenderTemplateSpaces(unittest.TestCase):
+    """render_template 保留行内/行尾空格（两排可用空格控制对齐/间距）。"""
+    V = {'make': 'SONY', 'model': 'ILCE-7CM2', 'shutter': '1/20s', 'aperture': 'F4'}
+
+    def test_trailing_spaces_kept(self):
+        self.assertEqual(photo.render_template('{make} {model}  ', self.V),
+                         'SONY ILCE-7CM2  ')
+
+    def test_leading_spaces_second_line_kept(self):
+        self.assertEqual(photo.render_template('{make} {model}\n  {shutter} {aperture}', self.V),
+                         'SONY ILCE-7CM2\n  1/20s F4')
+
+    def test_blank_lines_still_work(self):
+        self.assertEqual(photo.render_template('{make}\n\n{model}', self.V),
+                         'SONY\n\nILCE-7CM2')
+        self.assertEqual(photo.render_template('\n\n{make}\n\n', self.V), 'SONY')
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
