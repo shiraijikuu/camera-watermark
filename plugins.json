@@ -4,19 +4,19 @@
     {
       "id": "image-watermark",
       "name": "Image Watermark",
-      "description": "自定义图片水印（PNG/JPG/GIF）+ 10 相机品牌 logo 预设 + 与文字对齐布局（左/右/上/下+间距），支持大小/位置/旋转/透明度，RAW 自动跳过",
+      "description": "自定义图片水印（PNG/JPG/GIF）+ 10 相机品牌 logo 预设 + 与文字对齐布局（透明 logo 间距修正/越界自动翻转），支持大小/位置/旋转/透明度，RAW 自动跳过",
       "author": "shiraijikuu",
       "repo": "shiraijikuu/PhotoWatermark-image-watermark",
       "license": "MIT",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "tags": [
         "watermark",
         "image",
         "gif",
         "logo"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.2.0/PhotoWatermark-image-watermark-v1.2.0.zip",
-      "checksum": "37405f6deda285538d25561482d8ee327eca2e8b97488b1c7ecc64a5428cdb00",
+      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.2.1/PhotoWatermark-image-watermark-v1.2.1.zip",
+      "checksum": "7e7739a3516073a1f4ec8d3c0dcdabe03a277e2d9fb0c2474cfdfc6df0e36e1a",
       "updated_at": "2026-08-28"
     },
     {
@@ -40,19 +40,19 @@
     {
       "id": "blur-card",
       "name": "Blur Card",
-      "description": "模糊卡片水印样式：模糊深色背景 + 清晰前景 + 底部相机参数信息栏（文字可拖拽，需主程序 >= 2.0.0）",
+      "description": "模糊卡片水印样式：模糊背景 + 清晰前景 + 相机信息栏（文字可拖拽）+ 叠加图片水印开关（需主程序 >= 2.0.0）",
       "author": "shiraijikuu",
       "repo": "shiraijikuu/PhotoWatermark-blur-card",
       "license": "MIT",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "tags": [
         "watermark",
         "style",
         "blur",
         "card"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-blur-card/releases/download/v1.0.1/PhotoWatermark-blur-card-v1.0.1.zip",
-      "checksum": "87a8bc8aa5d498eec966bc3f43622ce5e9b07cafdcfd068ef54235f3eefd6606",
+      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-blur-card/releases/download/v1.0.2/PhotoWatermark-blur-card-v1.0.2.zip",
+      "checksum": "abd2eb556ddf96ac07bcdfb94cba5bbf165d1cb76184543f182e915ee082cd29",
       "updated_at": "2026-08-28"
     }
   ]
