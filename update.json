@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
   "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v2.0.0/PhotoWatermark-v2.0.0.exe",
-  "note": "v2.0.0: 2.0 style engine + template spacing controls + plugin crash fallback. / 2.0 样式引擎 + 模板排版控制 + 插件崩溃回退。",
-  "checksum": "0f3378fe97749017d57e3d97a2641ff2d5073df15a6ded9e0757b0468f684336"
+  "note": "v2.0.0: 2.0 style engine + template spacing + plugin fallback + settings group headers. / 2.0 样式引擎 + 模板排版 + 插件回退 + 设置分组标题。",
+  "checksum": "9757c6867013e38dbe4b1f0b7a2028148c8c3c79a8a6a2bd7950659b029fec60"
 }
