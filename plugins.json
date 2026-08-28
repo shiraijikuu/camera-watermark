@@ -40,19 +40,19 @@
     {
       "id": "blur-card",
       "name": "Blur Card",
-      "description": "模糊卡片水印样式：模糊背景 + 清晰前景 + 相机信息栏（文字可拖拽）+ 叠加图片水印开关（需主程序 >= 2.0.0）",
+      "description": "模糊卡片水印样式：模糊背景 + 清晰前景 + 相机信息栏（文字可拖拽、支持参数间距、非法值防御，需主程序 >= 2.0.0）",
       "author": "shiraijikuu",
       "repo": "shiraijikuu/PhotoWatermark-blur-card",
       "license": "MIT",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "tags": [
         "watermark",
         "style",
         "blur",
         "card"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-blur-card/releases/download/v1.0.2/PhotoWatermark-blur-card-v1.0.2.zip",
-      "checksum": "abd2eb556ddf96ac07bcdfb94cba5bbf165d1cb76184543f182e915ee082cd29",
+      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-blur-card/releases/download/v1.0.3/PhotoWatermark-blur-card-v1.0.3.zip",
+      "checksum": "1201c9e9da0e7d312f9e1fcc2a2d8a41ccb570d4f506e3c3d1daabdddb002cde",
       "updated_at": "2026-08-28"
     }
   ]
