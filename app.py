@@ -1486,6 +1486,8 @@ class App:
 
     def _bind_settings(self):
         self.preset_combo.bind('<<ComboboxSelected>>', self._on_preset)
+        # 样式下拉：选择即更新 settings['style'] + 重渲染（与其它下拉一致）
+        self.style_combo.bind('<<ComboboxSelected>>', lambda _e: self._on_change())
         self.template_text.bind('<<Modified>>', self._on_template_modified)
         self.override_var.trace_add('write', lambda *a: self._on_change())
         self.font_var.trace_add('write', lambda *a: self._on_change())
