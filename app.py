@@ -1707,7 +1707,13 @@ class App:
         if apply_style and style != 'default' and style in PLUGIN_API.styles:
             _label, renderer, replaces2 = PLUGIN_API.styles[style]
             if replaces2:
-                res = _call_style_renderer(renderer, img, settings, values, img)
+                # 整图重绘型主样式（如模糊卡片）：单个插件崩溃不得拖垮整张预览，
+                # 回退为仅默认文字水印并提示（避免"水印莫名消失"）。
+                try:
+                    res = _call_style_renderer(renderer, img, settings, values, img)
+                except Exception as e:
+                    print('插件样式渲染出错: %s' % e)
+                    res = None
             else:
                 # 兼容型：renderer 需要带文字水印的图（与旧版一致），此处重新渲染
                 wm = photo.render_watermark(img, settings, values, fonts_dir=FONTS_DIR,
