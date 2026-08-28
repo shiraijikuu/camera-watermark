@@ -274,5 +274,32 @@ class TestRenderTemplateSpaces(unittest.TestCase):
                          'SONY\n\nILCE-7CM2')
         self.assertEqual(photo.render_template('\n\n{make}\n\n', self.V), 'SONY')
 
+
+
+class TestWordSpacingManualSpaces(unittest.TestCase):
+    """word_spacing 与手动空格叠加：手动空格保留，空白序列处额外叠加参数间距。"""
+    BASE = {'font_family': '', 'font_size_pct': 3.0, 'anchor': 7,
+            'margin_pct': 5.0, 'offset_x_pct': 0, 'offset_y_pct': 0}
+    V = {'make': 'SONY', 'model': 'ILCE-7CM2', 'focal': '24mm', 'shutter': '1/20s', 'aperture': 'F4'}
+
+    def _w(self, template, ws=0):
+        img = Image.new('RGB', (1000, 600), (0, 0, 0))
+        r = photo.watermark_rect(img, dict(self.BASE, template=template, word_spacing=ws), dict(self.V))
+        return r[2] - r[0]
+
+    def test_manual_spaces_kept_at_ws0(self):
+        # ws=0：手动空格保留（1 空格 < 3 空格）
+        self.assertGreater(self._w('{make}   {model}'), self._w('{make} {model}'))
+
+    def test_word_spacing_stacks_on_manual(self):
+        # ws=2 在手动空格基础上再拉开（同一模板，ws=2 > ws=0）
+        self.assertGreater(self._w('{make} {model}', 2.0), self._w('{make} {model}', 0))
+
+    def test_render_with_manual_spaces_and_ws(self):
+        img = Image.new('RGB', (1000, 600), (0, 0, 0))
+        out = photo.render_watermark(img, dict(self.BASE, template='{make}   {model}', word_spacing=2.0),
+                                     dict(self.V))
+        self.assertEqual(out.size, (1000, 600))
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

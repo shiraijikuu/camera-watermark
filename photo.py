@@ -571,21 +571,23 @@ def _watermark_layout(img, settings, values, fonts_dir=None, full_size=None):
     line_h = int((ascent + descent) * (1 + settings.get('line_spacing', 0.35)))
     ws = float(settings.get('word_spacing', 0.0))     # 参数间距（×字号），0=仅模板空格
     spacing_px = int(fs * ws) if ws > 0 else 0
+    import re
+    def _line_width(l, f, sp):
+        """行宽：手动空格保留，空白序列再叠加参数间距 sp。"""
+        if sp <= 0:
+            b = f.getbbox(l)
+            return max(0, b[2] - b[0])
+        w = 0
+        for part in re.split(r'(\s+)', l):
+            if not part:
+                continue
+            w += max(0, f.getbbox(part)[2] - f.getbbox(part)[0])
+            if not part.strip():
+                w += sp
+        return w
     widths = []
     for l in lines:
-        if spacing_px > 0:
-            # 按 token 拆分：相邻参数间额外拉开 spacing_px
-            toks = [t for t in l.split() if t]
-            if len(toks) > 1:
-                w = sum(max(0, font.getbbox(t)[2] - font.getbbox(t)[0]) for t in toks)
-                w += spacing_px * (len(toks) - 1)
-            else:
-                b = font.getbbox(l)
-                w = max(0, b[2] - b[0])
-        else:
-            b = font.getbbox(l)
-            w = max(0, b[2] - b[0])
-        widths.append(w)
+        widths.append(_line_width(l, font, spacing_px))
     block_w = max(widths) if widths else 0
     block_h = line_h * len(lines)
     padding = int(fs * settings.get('bg_padding', 0.6))
@@ -675,14 +677,20 @@ def render_watermark(img, settings, values, fonts_dir=None, full_size=None, orig
     _ws = float(settings.get('word_spacing', 0.0))
     _spacing_px = int(fs * _ws) if _ws > 0 else 0
 
+    import re
     def _draw_line(od, txt, x, y, fill, stroke_w=0, stroke_fill=None):
         if _spacing_px > 0:
-            toks = [t for t in txt.split() if t]
+            # 保留手动空格，空白序列处额外叠加参数间距
             xx = x
-            for t in toks:
-                od.text((xx, y), t, font=font, fill=fill,
-                        stroke_width=stroke_w, stroke_fill=stroke_fill)
-                xx += (font.getbbox(t)[2] - font.getbbox(t)[0]) + _spacing_px
+            for part in re.split(r'(\s+)', txt):
+                if not part:
+                    continue
+                if part.strip():
+                    od.text((xx, y), part, font=font, fill=fill,
+                            stroke_width=stroke_w, stroke_fill=stroke_fill)
+                xx += (font.getbbox(part)[2] - font.getbbox(part)[0])
+                if not part.strip():
+                    xx += _spacing_px
         else:
             od.text((x, y), txt, font=font, fill=fill,
                     stroke_width=stroke_w, stroke_fill=stroke_fill)
