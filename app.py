@@ -711,15 +711,26 @@ class PluginSettingsWindow:
                     cur = str(pvals.get(key, spec.get('default', '')))
                     gal = ttk.Frame(row)
                     gal.pack(side='left', fill='x', expand=True)
-                    hb = ttk.Frame(gal)
-                    hb.pack(fill='x')
-                    canvas = tk.Canvas(hb, height=96, highlightthickness=0)
+                    # canvas 与 hsb 直接放 gal（去掉中间 hb 嵌套），side top/bottom 明确上下
+                    canvas = tk.Canvas(gal, height=96, highlightthickness=0)
                     hsb = ttk.Scrollbar(gal, orient='horizontal', command=canvas.xview)
                     inner = ttk.Frame(canvas)
-                    inner.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
-                    canvas.create_window((0, 0), window=inner, anchor='nw')
+                    _win_id = canvas.create_window((0, 0), window=inner, anchor='nw')
+                    def _update_scroll(_c=canvas, _i=inner, _wid=_win_id):
+                        # 用实际请求宽度更新 window item 与 scrollregion，
+                        # 确保 30 个缩略图都算进滚动范围（否则滚动条滑块占满、像没有滚动条）
+                        try:
+                            _i.update_idletasks()   # 确保 tile 布局完成后再取宽度
+                        except Exception:
+                            pass
+                        req_w = _i.winfo_reqwidth()
+                        req_h = _i.winfo_reqheight()
+                        if req_w > 0:
+                            _c.itemconfigure(_wid, width=req_w)
+                            _c.configure(scrollregion=(0, 0, req_w, req_h))
+                    inner.bind('<Configure>', lambda e: _update_scroll())
                     canvas.configure(xscrollcommand=hsb.set)
-                    canvas.pack(side='left', fill='both', expand=True)
+                    canvas.pack(side='top', fill='both', expand=True)
                     hsb.pack(side='bottom', fill='x')
                     tiles = []
                     for it in opts:
@@ -749,6 +760,8 @@ class PluginSettingsWindow:
                         th.bind('<Button-1>', lambda e, pn=pname, k=key, it=it, t=tile: self._gallery_pick(pn, k, it, t))
                         tile.bind('<Button-1>', lambda e, pn=pname, k=key, it=it, t=tile: self._gallery_pick(pn, k, it, t))
                         tiles.append((tile, it))
+                    # 所有 tile pack 完后延迟一帧更新 scrollregion（确保 inner 宽度已算好）
+                    canvas.after_idle(_update_scroll)
                     self.widgets[pname][key] = ('gallery', {'tiles': tiles})
                 elif kind == 'range':
                     try:
