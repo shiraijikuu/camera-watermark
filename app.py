@@ -1969,19 +1969,39 @@ class App:
 
     # ---------- 字体 ----------
     def add_font(self):
+        # Windows 原生文件对话框的多扩展名必须用分号分隔（空格分隔会导致过滤器失效/返回空）
         path = filedialog.askopenfilename(
-            title=tr('选择字体文件'), filetypes=[(tr('字体文件'), '*.ttf *.otf *.ttc'), (tr('所有文件'), '*.*')])
+            title=tr('选择字体文件'),
+            filetypes=[('Font files (*.ttf;*.otf;*.ttc)', '*.ttf;*.otf;*.ttc'),
+                       ('TrueType (*.ttf)', '*.ttf'),
+                       ('OpenType (*.otf)', '*.otf'),
+                       ('Collection (*.ttc)', '*.ttc'),
+                       (tr('所有文件'), '*.*')])
         if not path:
+            _log('添加字体：取消（未选择文件）')
             return
         try:
             os.makedirs(FONTS_DIR, exist_ok=True)
-            shutil.copy(path, os.path.join(FONTS_DIR, os.path.basename(path)))
+            name = os.path.basename(path)
+            dst = os.path.join(FONTS_DIR, name)
+            _log('添加字体：源=%s -> 目标=%s' % (path, dst))
+            if os.path.abspath(path) != os.path.abspath(dst):
+                shutil.copy(path, dst)                       # 源不是目标才复制（避免 SameFileError）
+            if not (os.path.exists(dst) and os.path.getsize(dst) > 0):   # 复制后校验
+                raise OSError('字体复制后校验失败（文件不存在或为空）：%s' % dst)
             self.fonts = photo.available_fonts(FONTS_DIR)
-            self.font_combo['values'] = [n for n, _ in self.fonts]
-            self.font_var.set([n for n, _ in self.fonts][-1])
-            self.status_var.set('已添加字体：' + os.path.basename(path))
+            names = [n for n, _ in self.fonts]
+            self.font_combo['values'] = names
+            self.update_idletasks()
+            stem = os.path.splitext(name)[0]                 # 按文件名精确选中，而非盲目取最后一项
+            target = next((n for n in names if n.endswith(stem)), None) or (names[-1] if names else None)
+            if target:
+                self.font_var.set(target)
+            self.status_var.set(tr('已添加字体：') + name)
+            _log('添加字体成功：%s，列表共 %d 个，选中=%s' % (name, len(names), target))
             self._on_change()
         except Exception as e:
+            _log('添加字体失败：%r' % (e,))
             messagebox.showerror(tr('添加字体失败'), str(e))
 
     def open_fonts_dir(self):
