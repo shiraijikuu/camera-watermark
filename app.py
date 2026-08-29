@@ -1349,7 +1349,7 @@ class App:
         paned.pack(fill='both', expand=True, padx=10, pady=(0, 6))
 
         # ---------- 左栏：照片列表（固定初始宽，可拖拽）----------
-        left = ttk.Frame(paned, width=300)
+        left = ttk.Frame(paned, width=360)
         left.pack_propagate(False)          # 锁定固定宽，不被内部 Treeview 撑大
         paned.add(left, weight=0)
 
