@@ -23,8 +23,11 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 
 
 def load_blur_card():
-    spec = importlib.util.spec_from_file_location(
-        'blur_card_plugin', os.path.join(BASE, 'plugins', 'blur-card', 'plugin.py'))
+    plugin_py = os.path.join(BASE, 'plugins', 'blur-card', 'plugin.py')
+    if not os.path.exists(plugin_py):
+        # 插件独立仓库交付，主仓库 clone 后可能不在；CI 由 workflows 先拉取，本地缺失时跳过
+        raise unittest.SkipTest('blur-card 插件未安装（独立仓库交付）')
+    spec = importlib.util.spec_from_file_location('blur_card_plugin', plugin_py)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

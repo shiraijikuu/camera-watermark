@@ -99,6 +99,7 @@ class TestImageWmLayout(unittest.TestCase):
 
 
 
+@unittest.skipUnless(os.path.exists(PLUGIN_PY), 'image-watermark 插件源码未在 plugin-repos/')
 class TestListPresetsRecursive(unittest.TestCase):
     """image-watermark _list_presets 递归扫描子目录（DLC 素材）。"""
     @classmethod
