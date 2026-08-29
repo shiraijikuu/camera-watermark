@@ -1343,8 +1343,9 @@ class App:
         paned.pack(fill='both', expand=True, padx=10, pady=(0, 6))
 
         # ---------- 左栏：照片列表（固定初始宽，可拖拽）----------
-        left = ttk.Frame(paned, width=264)
-        paned.add(left, weight=1)
+        left = ttk.Frame(paned, width=300)
+        left.pack_propagate(False)          # 锁定固定宽，不被内部 Treeview 撑大
+        paned.add(left, weight=0)
 
         head = ttk.Frame(left)
         head.pack(fill='x', pady=(0, 4))
@@ -1376,24 +1377,29 @@ class App:
         self.tree = ttk.Treeview(tree_wrap, columns=cols, show='tree headings', selectmode='browse')
         heads = {'check': '✓', 'name': '文件名', 'camera': '相机', 'shutter': '快门',
                  'aperture': '光圈', 'iso': 'ISO', 'size': '尺寸'}
-        widths = {'check': 34, 'name': 130, 'camera': 110, 'shutter': 60,
-                  'aperture': 50, 'iso': 55, 'size': 70}
+        widths = {'check': 32, 'name': 118, 'camera': 78, 'shutter': 50,
+                  'aperture': 46, 'iso': 46, 'size': 58}
+        minws = {'check': 32, 'name': 90, 'camera': 60, 'shutter': 44,
+                 'aperture': 40, 'iso': 40, 'size': 50}
         self.tree.heading('#0', text=tr('缩略图'))
-        self.tree.column('#0', width=34, minwidth=34, stretch=False, anchor='center')
+        self.tree.column('#0', width=32, minwidth=32, stretch=False, anchor='center')
         for c in cols:
             self.tree.heading(c, text=tr(heads[c]))
-            self.tree.column(c, width=widths[c], anchor=('center' if c == 'check' else 'w'),
-                             stretch=(c in ('name', 'camera')))
+            self.tree.column(c, width=widths[c], minwidth=minws[c],
+                             anchor=('center' if c == 'check' else 'w'),
+                             stretch=(c == 'name'))
         sb = ttk.Scrollbar(tree_wrap, orient='vertical', command=self.tree.yview)
-        self.tree.configure(yscrollcommand=sb.set)
-        self.tree.pack(side='left', fill='both', expand=True)
+        hsb = ttk.Scrollbar(tree_wrap, orient='horizontal', command=self.tree.xview)
+        self.tree.configure(yscrollcommand=sb.set, xscrollcommand=hsb.set)
         sb.pack(side='right', fill='y')
+        hsb.pack(side='bottom', fill='x')
+        self.tree.pack(side='left', fill='both', expand=True)
         self.tree.bind('<<TreeviewSelect>>', self._on_select)
         self.tree.bind('<Button-1>', self._on_tree_click)
 
         # ---------- 中栏：预览（最大化）----------
         center = ttk.Frame(paned)
-        paned.add(center, weight=4)
+        paned.add(center, weight=1)
         self.preview_scale = 'fit'
         self._view_x = 0
         self._view_y = 0
@@ -1437,8 +1443,9 @@ class App:
         self.compare_btn.bind('<ButtonRelease-1>', lambda e: self._set_compare(False))
 
         # ---------- 右栏：水印参数（竖排 Notebook；无主题插件时自动回退为顶部横排）----------
-        right = ttk.Frame(paned, width=320)
-        paned.add(right, weight=1)
+        right = ttk.Frame(paned, width=288)
+        right.pack_propagate(False)         # 锁定固定宽，不被内部控件撑大
+        paned.add(right, weight=0)
         try:
             nb = ttk.Notebook(right, style='Vertical.TNotebook')
         except Exception:
@@ -1473,16 +1480,15 @@ class App:
         self.progress.pack(side='left', fill='x', expand=True, padx=8)
     def _build_text_tab(self, nb):
         f = ttk.Frame(nb, padding=8)
-        nb.add(f, text=tr('水印文字'))
+        nb.add(f, text=tr('文字'))
         ttk.Label(f, text=tr('模板预设')).pack(anchor='w')
         self.preset_var = tk.StringVar()
         self.preset_combo = ttk.Combobox(f, textvariable=self.preset_var, values=[tr(k) for k in TEMPLATE_PRESETS.keys()], state='readonly')
         self.preset_combo.pack(fill='x', pady=(2, 2))
-        crow = ttk.Frame(f)
-        crow.pack(fill='x', pady=(0, 6))
-        self.save_custom_btn = ttk.Button(crow, text=tr('保存为自定义模板'), command=self.save_custom_template)
-        self.save_custom_btn.pack(side='left')
-        ttk.Label(crow, text=tr('保存后可在预设里选“自定义（可保存）”恢复'), foreground='#888').pack(side='left', padx=6)
+        self.save_custom_btn = ttk.Button(f, text=tr('保存为自定义模板'), command=self.save_custom_template)
+        self.save_custom_btn.pack(anchor='w', pady=(2, 0))
+        ttk.Label(f, text=tr('保存后可在预设里选“自定义（可保存）”恢复'), foreground='#888',
+                  wraplength=232).pack(anchor='w', pady=(2, 6))
         ttk.Label(f, text=tr('模板（可编辑，换行=多行）')).pack(anchor='w')
         self.template_text = tk.Text(f, height=4, font=('Microsoft YaHei', 10))
         self.template_text.pack(fill='x', pady=(2, 4))
@@ -1490,7 +1496,7 @@ class App:
         extra = ''
         if PLUGIN_API.tokens:
             extra = tr('   插件变量: ') + ' '.join('{%s}' % k for k in PLUGIN_API.tokens)
-        ttk.Label(f, text=hint + extra, foreground='#888', wraplength=620).pack(anchor='w')
+        ttk.Label(f, text=hint + extra, foreground='#888', wraplength=232).pack(anchor='w')
         ttk.Label(f, text=tr('相机名覆盖（留空=自动识别品牌型号）')).pack(anchor='w', pady=(6, 2))
         self.override_var = tk.StringVar()
         ttk.Entry(f, textvariable=self.override_var).pack(fill='x')
@@ -1508,11 +1514,12 @@ class App:
         self.font_combo.pack(side='left', fill='x', expand=True, padx=6)
         self.font_combo.bind('<Button-1>', lambda _e: self.refresh_fonts())
         frow = ttk.Frame(f)
-        frow.pack(fill='x', pady=(2, 2))
-        ttk.Button(frow, text=tr('添加字体文件'), command=self.add_font).pack(side='left')
-        ttk.Button(frow, text=tr('打开字体文件夹'), command=self.open_fonts_dir).pack(side='left', padx=6)
-        ttk.Button(frow, text=tr('刷新字体'), command=self.refresh_fonts).pack(side='left', padx=6)
-        ttk.Label(frow, text=tr('放好后点刷新或重启，无需重启也支持子文件夹'), foreground='#888').pack(side='left')
+        frow.pack(fill='x', pady=(2, 0))
+        ttk.Button(frow, text=tr('添加字体'), command=self.add_font).pack(side='left')
+        ttk.Button(frow, text=tr('字体文件夹'), command=self.open_fonts_dir).pack(side='left', padx=6)
+        ttk.Button(f, text=tr('刷新字体'), command=self.refresh_fonts).pack(anchor='w', pady=(4, 0))
+        ttk.Label(f, text=tr('放好后点刷新或重启，无需重启也支持子文件夹'), foreground='#888',
+                  wraplength=232).pack(anchor='w', pady=(2, 2))
         self.bold_var = tk.BooleanVar()
         ttk.Checkbutton(f, text=tr('加粗'), variable=self.bold_var).pack(anchor='w', pady=4)
 
@@ -1523,7 +1530,7 @@ class App:
         self.style_combo.pack(side='left', fill='x', expand=True, padx=6)
         self._refresh_style_choices()
         ttk.Label(f, text=tr('选择插件样式后会叠加在文字水印之上（文字+图片可同时显示）'),
-                  foreground='#888').pack(anchor='w', pady=(2, 0))
+                  foreground='#888', wraplength=232).pack(anchor='w', pady=(2, 0))
 
         row = ttk.Frame(f); row.pack(fill='x')
         ttk.Label(row, text=tr('字号(%宽)')).pack(side='left')
@@ -1551,13 +1558,14 @@ class App:
         self.word_spacing_label = ttk.Label(row, text='', width=5)
         self.word_spacing_label.pack(side='left')
 
-        row = ttk.Frame(f); row.pack(fill='x', pady=4)
+        row = ttk.Frame(f); row.pack(fill='x', pady=(4, 0))
         ttk.Label(row, text=tr('文字颜色')).pack(side='left')
         self.text_color_btn = ttk.Button(row, text=tr('选择颜色'), command=self.pick_text_color)
         self.text_color_btn.pack(side='left', padx=6)
         self.text_color_sw = tk.Canvas(row, width=24, height=18, highlightthickness=1, highlightbackground='#999')
         self.text_color_sw.pack(side='left')
-        ttk.Label(row, text=tr('透明度')).pack(side='left', padx=(12, 4))
+        row = ttk.Frame(f); row.pack(fill='x', pady=2)
+        ttk.Label(row, text=tr('透明度')).pack(side='left')
         self.text_opacity_var = tk.DoubleVar()
         ttk.Scale(row, from_=0, to=1, variable=self.text_opacity_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
         _add_scale_entry(row, self.text_opacity_var, 0, 1, lambda v: self._on_change(), fmt='%.2f').pack(side='left', padx=(0, 4))
@@ -1600,12 +1608,12 @@ class App:
         self.margin_label.pack(side='left')
 
         ttk.Label(f, text=tr('提示：边距=0 时贴底；纵向偏移为正值可把水印推向/超出底边'),
-                  foreground='#888').pack(anchor='w', pady=(4, 0))
+                  foreground='#888', wraplength=232).pack(anchor='w', pady=(4, 0))
 
 
     def _build_bg_tab(self, nb):
         f = ttk.Frame(nb, padding=8)
-        nb.add(f, text=tr('背景/描边'))
+        nb.add(f, text=tr('背景'))
         self.bg_enabled_var = tk.BooleanVar()
         ttk.Checkbutton(f, text=tr('半透明背景条'), variable=self.bg_enabled_var, command=self._on_change).pack(anchor='w')
         row = ttk.Frame(f); row.pack(fill='x')
@@ -1613,7 +1621,8 @@ class App:
         ttk.Button(row, text=tr('选择'), command=self.pick_bg_color).pack(side='left', padx=6)
         self.bg_color_sw = tk.Canvas(row, width=24, height=18, highlightthickness=1, highlightbackground='#999')
         self.bg_color_sw.pack(side='left')
-        ttk.Label(row, text=tr('不透明度')).pack(side='left', padx=(12, 4))
+        row = ttk.Frame(f); row.pack(fill='x')
+        ttk.Label(row, text=tr('不透明度')).pack(side='left')
         self.bg_opacity_var = tk.DoubleVar()
         ttk.Scale(row, from_=0, to=1, variable=self.bg_opacity_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
         _add_scale_entry(row, self.bg_opacity_var, 0, 1, lambda v: self._on_change(), fmt='%.2f').pack(side='left', padx=(0, 4))
@@ -1634,7 +1643,8 @@ class App:
         ttk.Button(row, text=tr('选择'), command=self.pick_outline_color).pack(side='left', padx=6)
         self.outline_color_sw = tk.Canvas(row, width=24, height=18, highlightthickness=1, highlightbackground='#999')
         self.outline_color_sw.pack(side='left')
-        ttk.Label(row, text=tr('粗细')).pack(side='left', padx=(12, 4))
+        row = ttk.Frame(f); row.pack(fill='x')
+        ttk.Label(row, text=tr('粗细')).pack(side='left')
         self.outline_width_var = tk.DoubleVar()
         ttk.Scale(row, from_=0.02, to=0.3, variable=self.outline_width_var, command=lambda v: self._on_change()).pack(side='left', fill='x', expand=True, padx=6)
         _add_scale_entry(row, self.outline_width_var, 0.02, 0.3, lambda v: self._on_change(), fmt='%.3f').pack(side='left', padx=(0, 4))
@@ -1673,22 +1683,27 @@ class App:
         self.suffix_var = tk.StringVar()
         ttk.Entry(row, textvariable=self.suffix_var, width=12).pack(side='left', padx=6)
         self.overwrite_var = tk.BooleanVar()
-        ttk.Checkbutton(f, text=tr('覆盖已存在的输出文件（否则自动加 (1)(2)）'), variable=self.overwrite_var).pack(anchor='w', pady=4)
+        ttk.Checkbutton(f, text=tr('覆盖已存在文件（否则自动加 (1)(2)）'), variable=self.overwrite_var).pack(anchor='w', pady=4)
         ttk.Label(f, text=tr('插件已加载: %s') % (', '.join(PLUGIN_NAMES) if PLUGIN_NAMES else '无'),
-                  foreground='#888').pack(anchor='w', pady=2)
+                  foreground='#888', wraplength=232).pack(anchor='w', pady=2)
         row2 = ttk.Frame(f)
         row2.pack(fill='x', pady=2)
-        ttk.Button(row2, text=tr('插件管理'), command=self.open_plugin_manager).pack(side='left')
+        row2.columnconfigure(0, weight=1)
+        row2.columnconfigure(1, weight=1)
+        ttk.Button(row2, text=tr('插件管理'), command=self.open_plugin_manager).grid(
+            row=0, column=0, sticky='ew', padx=(0, 3), pady=2)
         self.plugin_settings_mb = ttk.Menubutton(row2, text=tr('插件设置 ▾'))
-        self.plugin_settings_mb.pack(side='left', padx=6)
+        self.plugin_settings_mb.grid(row=0, column=1, sticky='ew', padx=(3, 0), pady=2)
         self.plugin_settings_mb.menu = tk.Menu(self.plugin_settings_mb, tearoff=0)
         self.plugin_settings_mb['menu'] = self.plugin_settings_mb.menu
         self._rebuild_plugin_settings_menu()
-        ttk.Button(row2, text=tr('插件商店'), command=self.open_plugin_store).pack(side='left', padx=6)
-        ttk.Button(row2, text=tr('检查更新'), command=self.check_update).pack(side='left', padx=6)
-        ttk.Label(row2, text=tr('当前版本 v') + APP_VERSION, foreground='#888').pack(side='left', padx=6)
+        ttk.Button(row2, text=tr('插件商店'), command=self.open_plugin_store).grid(
+            row=1, column=0, sticky='ew', padx=(0, 3), pady=2)
+        ttk.Button(row2, text=tr('检查更新'), command=self.check_update).grid(
+            row=1, column=1, sticky='ew', padx=(3, 0), pady=2)
+        ttk.Label(f, text=tr('当前版本 v') + APP_VERSION, foreground='#888').pack(anchor='w', pady=(2, 0))
         ttk.Label(f, text=tr('作者：Shiraijikuu　·　AI 协助：OpenAI Codex　·　MIT 开源'),
-                  foreground='#aaa').pack(anchor='w', pady=(2, 4))
+                  foreground='#aaa', wraplength=232).pack(anchor='w', pady=(2, 4))
         langrow = ttk.Frame(f)
         langrow.pack(fill='x', pady=(2, 4))
         ttk.Label(langrow, text=tr('语言')).pack(side='left')
