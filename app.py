@@ -702,7 +702,15 @@ class PluginSettingsWindow:
         sb = ttk.Scrollbar(body, orient='vertical', command=canvas.yview)
         inner = ttk.Frame(canvas)
         inner.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
-        canvas.create_window((0, 0), window=inner, anchor='nw')
+        _win_id = canvas.create_window((0, 0), window=inner, anchor='nw')
+
+        def _sync_inner_width(_e=None):
+            # 让 inner 铺满 canvas 可视宽，避免右侧留一大截空白（滚轮/控件都够不到）
+            cw = canvas.winfo_width()
+            if cw > 20:
+                canvas.itemconfigure(_win_id, width=cw)
+        canvas.bind('<Configure>', _sync_inner_width)
+        canvas.after_idle(_sync_inner_width)
         canvas.configure(yscrollcommand=sb.set)
         canvas.pack(side='left', fill='both', expand=True)
         sb.pack(side='right', fill='y')
@@ -737,6 +745,10 @@ class PluginSettingsWindow:
                 _bind(c)
 
         _bind(inner)
+        # canvas 本身也绑：鼠标停在右侧/内容下方空白区时滚轮同样生效
+        canvas.bind('<MouseWheel>', _on_mw)
+        canvas.bind('<Button-4>', _on_mw)
+        canvas.bind('<Button-5>', _on_mw)
 
     def _fill(self, inner):
         vals = self.parent.settings.get('plugin_values', {})

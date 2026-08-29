@@ -342,8 +342,8 @@ class TestBadgeRows(unittest.TestCase):
     """参数标签框：值清洗、字段模板顺序、空值跳过、整管线冒烟。"""
     def setUp(self):
         self.mod = load_blur_card()
-        self.values = {'focal': '35mm', 'aperture': 'F1.79',
-                       'shutter': '1/2151s', 'iso': 'ISO 222'}
+        self.values = {'make': 'NIKON', 'model': 'D3200', 'focal': '35mm',
+                       'aperture': 'F1.79', 'shutter': '1/2151s', 'iso': 'ISO 222'}
 
     def _settings(self, order='跟随文字模板', tpl='', badge=True):
         return {'template': tpl,
@@ -374,14 +374,49 @@ class TestBadgeRows(unittest.TestCase):
         self.assertEqual([k for k, _ in rows], ['ISO', 'F', 'S'])
 
     def test_template_without_param_tokens_falls_back(self):
-        s = self._settings('跟随文字模板', '{make} {model}')
+        # 模板无任何 badge 字段 token（品牌/参数都没有）才兜底到 F/S/ISO；
+        # 含 {make}/{model} 时按新功能正常识别为品牌/型号 badge
+        s = self._settings('跟随文字模板', '{date} {time}')
         rows = self.mod._badge_rows(self.values, s)
         self.assertEqual([k for k, _ in rows], ['F', 'S', 'ISO'])
+        s2 = self._settings('跟随文字模板', '{make} {model}')
+        rows2 = self.mod._badge_rows(self.values, s2)
+        self.assertEqual([k for k, _ in rows2], ['品牌', '型号'])
 
     def test_skip_empty_values(self):
         v = dict(self.values); v['iso'] = ''
         rows = self.mod._badge_rows(v, self._settings('F / S / ISO'))
         self.assertEqual([k for k, _ in rows], ['F', 'S'])
+
+    def test_preset_with_brand(self):
+        rows = self.mod._badge_rows(self.values, self._settings('品牌 / F / S / ISO'))
+        self.assertEqual([k for k, _ in rows], ['品牌', 'F', 'S', 'ISO'])
+        self.assertEqual(rows[0], ('品牌', 'NIKON'))
+
+    def test_preset_with_brand_model(self):
+        rows = self.mod._badge_rows(self.values, self._settings('品牌 / 型号 / F / S / ISO'))
+        self.assertEqual([k for k, _ in rows], ['品牌', '型号', 'F', 'S', 'ISO'])
+        self.assertEqual(rows[1], ('型号', 'D3200'))
+
+    def test_badge_skips_empty_brand(self):
+        v = dict(self.values); v['make'] = ''; v['model'] = ''
+        rows = self.mod._badge_rows(v, self._settings('品牌 / 型号 / F / S / ISO'))
+        self.assertEqual([k for k, _ in rows], ['F', 'S', 'ISO'])
+
+    def test_badge_horizontal_render_smoke(self):
+        # 下参数（宽条）横排 badge 渲染：不崩、尺寸不变、无前景白字干扰
+        img = Image.new('RGB', (900, 600), (40, 80, 120))
+        s = self._settings('品牌 / F / S / ISO', '{make}\n{aperture} {shutter} {iso}')
+        s.update(font_family='微软雅黑', font_size_pct=2.2, text_color='#ffffff',
+                 text_opacity=1.0, offset_x_pct=0, offset_y_pct=0)
+        s['plugin_values']['blur-card'].update(
+            blur_card_layout='下参数', blur_card_ratio='16:9', blur_card_fg_scale=72,
+            blur_card_margin=4, blur_card_bg_blur=3, blur_card_darken=30,
+            blur_card_backdrop=0, blur_card_round=12, blur_card_shadow=True,
+            blur_card_outline=True, blur_card_badge=True, blur_card_badge_order='品牌 / F / S / ISO')
+        vals = dict(self.values, camera='NIKON', lens='', date='', time='')
+        out = self.mod._render(img.copy(), s, vals, source=img)
+        self.assertEqual(out.size, img.size)
 
     def test_render_split_pipeline_smoke(self):
         img = Image.new('RGB', (900, 1200), (40, 80, 120))
