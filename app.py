@@ -267,6 +267,35 @@ FORMAT_CHOICES = [('jpg', 'JPG（可保留EXIF）'), ('png', 'PNG（无损）'),
 for fname, fspec in PLUGIN_API.formats.items():
     FORMAT_CHOICES.append((fname, fspec['label']))
 
+# 导出画幅比例：original=不改变；其余为目标 宽/高，居中裁剪（预览与导出共用同一纯函数）
+EXPORT_RATIO_CHOICES = [('original', '原比例'), ('1:1', '1:1'), ('4:5', '4:5'), ('3:4', '3:4'),
+                        ('2:3', '2:3'), ('3:2', '3:2'), ('16:9', '16:9'), ('9:16', '9:16')]
+EXPORT_RATIO_MAP = {'1:1': 1.0, '4:5': 4 / 5, '3:4': 3 / 4, '2:3': 2 / 3,
+                    '3:2': 3 / 2, '16:9': 16 / 9, '9:16': 9 / 16}
+
+
+def crop_to_export_ratio(img, key):
+    """按目标宽高比(宽/高)居中裁剪返回新图；'original'/未知/已一致时原样返回（纯函数，便于单测）。"""
+    if not key or key == 'original':
+        return img
+    target = EXPORT_RATIO_MAP.get(str(key))
+    if not target:
+        return img
+    w, h = img.size
+    if w < 2 or h < 2:
+        return img
+    cur = w / h
+    if abs(cur - target) < 1e-3:
+        return img
+    if cur > target:                       # 画面偏宽：裁左右
+        nw = max(1, int(round(h * target)))
+        x0 = (w - nw) // 2
+        return img.crop((x0, 0, x0 + nw, h))
+    nh = max(1, int(round(w / target)))    # 画面偏高：裁上下
+    y0 = (h - nh) // 2
+    return img.crop((0, y0, w, y0 + nh))
+
+
 BASE_TEMPLATE_PRESETS = {
     '相机 + 参数（默认）': '{make}  {model}   {focal}  {shutter}  {aperture}  {iso}',
     '相机 + 参数 + 日期': '{make}  {model}   {focal}  {shutter}  {aperture}  {iso}\n{date} {time}',
@@ -665,7 +694,7 @@ class PluginSettingsWindow:
         self._build()
 
     def _build(self):
-        ttk.Label(self.win, text=tr('插件设置会保存到 config.json，重启后保留'),
+        ttk.Label(self.win, text=tr('改动即时生效并自动保存（无需点保存）'),
                   foreground='#888').pack(anchor='w', padx=8, pady=(6, 2))
         body = ttk.Frame(self.win)
         body.pack(fill='both', expand=True, padx=8, pady=4)
@@ -683,8 +712,7 @@ class PluginSettingsWindow:
 
         bottom = ttk.Frame(self.win)
         bottom.pack(fill='x', padx=8, pady=6)
-        ttk.Button(bottom, text=tr('保存'), command=self.save).pack(side='right')
-        ttk.Button(bottom, text=tr('关闭'), command=self.win.destroy).pack(side='right', padx=6)
+        ttk.Button(bottom, text=tr('关闭'), command=self.win.destroy).pack(side='right')
 
     def _bind_wheel(self, canvas, inner):
         """设置面板滚轮滚动。tkinter 的 <MouseWheel> 事件只发给鼠标悬停的控件
@@ -747,6 +775,8 @@ class PluginSettingsWindow:
                 elif kind == 'bool':
                     var = tk.BooleanVar(value=bool(cur))
                     ttk.Checkbutton(row, variable=var).pack(side='left')
+                    # 勾选即时生效（trace 同时捕获鼠标点击与键盘空格）
+                    var.trace_add('write', lambda *a, pn=pname, k=key, vv=var: self._live(pn, k, vv))
                     self.widgets[pname][key] = ('var', var)
                 elif kind == 'gallery':
                     opts = spec.get('options') or []
@@ -859,6 +889,7 @@ class PluginSettingsWindow:
                 vals[key] = str(var.get())
         except Exception:
             return
+        save_config(self.parent.settings)   # 实时落盘，无需点「保存」
         self.parent._schedule_preview()
 
     def _gallery_pick(self, pname, key, item, tile):
@@ -1034,14 +1065,6 @@ class PluginSettingsWindow:
         save_config(self.parent.settings)
         self.parent.status_var.set(tr('插件设置已保存'))
         self.parent._schedule_preview()
-        # 若当前还是默认文字样式且插件有水印样式，提示切换，避免"设置了却看不到"
-        if PLUGIN_API.styles and self.parent.settings.get('style', 'default') == 'default':
-            if messagebox.askyesno(tr('提示'), tr('是否切换到插件的水印样式？')):
-                for _name, (label, _r, _replaces) in PLUGIN_API.styles.items():
-                    self.parent.style_var.set(label)
-                    break
-                self.parent._on_change()
-
 
 # ==================== 插件商店窗口 ====================
 class PluginStoreWindow:
@@ -1473,11 +1496,12 @@ class App:
         self._build_position_tab(nb)
         self._build_bg_tab(nb)
         self._build_export_tab(nb)
-        # 切到「导出」tab 时刷新插件设置下拉（新装插件即时出现，无需重启）
+        self._build_plugin_tab(nb)
+        # 切换 tab 时刷新插件设置下拉（新装插件即时出现，无需重启）
         nb.bind('<<NotebookTabChanged>>', lambda e: self._rebuild_plugin_settings_menu())
         self.nb = nb
 
-        # ===== 底部状态栏：操作 | 进度 | 状态 + 主题挂载位 =====
+        # ===== 底部状态栏：左侧操作 | 进度 | 右侧(状态 + 检查更新 + 语言 + 主题挂载位) =====
         bottom = ttk.Frame(root, padding=(10, 6))
         bottom.pack(fill='x')
         self.btn_export = ttk.Button(bottom, text=tr('导出水印照片'), command=self.do_export)
@@ -1487,14 +1511,47 @@ class App:
         self.btn_open_out = ttk.Button(bottom, text=tr('打开输出文件夹'), command=self.open_output, state='disabled')
         self.btn_open_out.pack(side='left', padx=6)
 
-        # 右侧先占位：主题挂载槽 + 状态文字（都 side=right，先放最右）
-        self.theme_slot = ttk.Frame(bottom)
-        self.theme_slot.pack(side='right')
+        # 右侧工具区（pack side=right：先放者最靠右）：主题槽 | 语言 | 检查更新
+        right_bar = ttk.Frame(bottom)
+        right_bar.pack(side='right')
+        self.theme_slot = ttk.Frame(right_bar)
+        self.theme_slot.pack(side='right', padx=(8, 0))
+        # 语言设置（从「导出」tab 移到底部栏）
+        langrow = ttk.Frame(right_bar)
+        langrow.pack(side='right', padx=8)
+        ttk.Label(langrow, text=tr('语言')).pack(side='left', padx=(0, 4))
+        self.lang_var = tk.StringVar()
+        self.lang_combo = ttk.Combobox(langrow, textvariable=self.lang_var,
+                                       values=list(LANGS.values()), state='readonly', width=10)
+        self.lang_combo.pack(side='left')
+        self.lang_combo.set(LANGS[get_lang()])
+        self.lang_combo.bind('<<ComboboxSelected>>', self._on_language_change)
+        # 检查更新（从「导出」tab 移来；插件管理/设置/商店在侧边栏「插件」tab）
+        ttk.Button(right_bar, text=tr('检查更新'), width=8, command=self.check_update).pack(side='right', padx=2)
+
+        # 状态文字（工具区左侧）
         self.status_var = tk.StringVar(value=tr('就绪'))
         ttk.Label(bottom, textvariable=self.status_var).pack(side='right', padx=10)
 
         self.progress = ttk.Progressbar(bottom, mode='determinate')
         self.progress.pack(side='left', fill='x', expand=True, padx=8)
+
+    def _build_plugin_tab(self, nb):
+        """右栏「插件」tab：插件管理 / 插件设置 / 插件商店（从原导出 tab 迁入，独立成栏）。"""
+        f = ttk.Frame(nb, padding=8)
+        nb.add(f, text=tr('插件'))
+        ttk.Label(f, text=tr('插件已加载: %s') % (', '.join(PLUGIN_NAMES) if PLUGIN_NAMES else '无'),
+                  foreground='#888', wraplength=232).pack(anchor='w', pady=(0, 6))
+        ttk.Button(f, text=tr('插件管理'), command=self.open_plugin_manager).pack(fill='x', pady=3)
+        self.plugin_settings_mb = ttk.Menubutton(f, text=tr('插件设置 ▾'))
+        self.plugin_settings_mb.pack(fill='x', pady=3)
+        self.plugin_settings_mb.menu = tk.Menu(self.plugin_settings_mb, tearoff=0)
+        self.plugin_settings_mb['menu'] = self.plugin_settings_mb.menu
+        self._rebuild_plugin_settings_menu()
+        ttk.Button(f, text=tr('插件商店'), command=self.open_plugin_store).pack(fill='x', pady=3)
+        ttk.Label(f, text=tr('当前版本 v') + APP_VERSION, foreground='#888').pack(anchor='w', pady=(10, 2))
+        ttk.Label(f, text=tr('作者：Shiraijikuu　·　AI 协助：OpenAI Codex　·　MIT 开源'),
+                  foreground='#aaa', wraplength=232).pack(anchor='w', pady=2)
     def _build_text_tab(self, nb):
         f = ttk.Frame(nb, padding=8)
         nb.add(f, text=tr('文字'))
@@ -1693,6 +1750,13 @@ class App:
         _add_scale_entry(row, self.quality_var, 50, 100, lambda v: None, fmt='%.0f').pack(side='left', padx=(0, 4))
         self.quality_label = ttk.Label(row, text='', width=5)
         self.quality_label.pack(side='left')
+        row = ttk.Frame(f); row.pack(fill='x', pady=(4, 0))
+        ttk.Label(row, text=tr('导出比例')).pack(side='left')
+        self.export_ratio_var = tk.StringVar()
+        self.export_ratio_combo = ttk.Combobox(
+            row, textvariable=self.export_ratio_var,
+            values=[tr(v) for _k, v in EXPORT_RATIO_CHOICES], state='readonly')
+        self.export_ratio_combo.pack(side='left', fill='x', expand=True, padx=6)
         self.preserve_exif_var = tk.BooleanVar()
         ttk.Checkbutton(f, text=tr('导出 JPG 时保留 EXIF 信息'), variable=self.preserve_exif_var).pack(anchor='w', pady=4)
         row = ttk.Frame(f); row.pack(fill='x')
@@ -1701,35 +1765,6 @@ class App:
         ttk.Entry(row, textvariable=self.suffix_var, width=12).pack(side='left', padx=6)
         self.overwrite_var = tk.BooleanVar()
         ttk.Checkbutton(f, text=tr('覆盖已存在文件（否则自动加 (1)(2)）'), variable=self.overwrite_var).pack(anchor='w', pady=4)
-        ttk.Label(f, text=tr('插件已加载: %s') % (', '.join(PLUGIN_NAMES) if PLUGIN_NAMES else '无'),
-                  foreground='#888', wraplength=232).pack(anchor='w', pady=2)
-        row2 = ttk.Frame(f)
-        row2.pack(fill='x', pady=2)
-        row2.columnconfigure(0, weight=1)
-        row2.columnconfigure(1, weight=1)
-        ttk.Button(row2, text=tr('插件管理'), command=self.open_plugin_manager).grid(
-            row=0, column=0, sticky='ew', padx=(0, 3), pady=2)
-        self.plugin_settings_mb = ttk.Menubutton(row2, text=tr('插件设置 ▾'))
-        self.plugin_settings_mb.grid(row=0, column=1, sticky='ew', padx=(3, 0), pady=2)
-        self.plugin_settings_mb.menu = tk.Menu(self.plugin_settings_mb, tearoff=0)
-        self.plugin_settings_mb['menu'] = self.plugin_settings_mb.menu
-        self._rebuild_plugin_settings_menu()
-        ttk.Button(row2, text=tr('插件商店'), command=self.open_plugin_store).grid(
-            row=1, column=0, sticky='ew', padx=(0, 3), pady=2)
-        ttk.Button(row2, text=tr('检查更新'), command=self.check_update).grid(
-            row=1, column=1, sticky='ew', padx=(3, 0), pady=2)
-        ttk.Label(f, text=tr('当前版本 v') + APP_VERSION, foreground='#888').pack(anchor='w', pady=(2, 0))
-        ttk.Label(f, text=tr('作者：Shiraijikuu　·　AI 协助：OpenAI Codex　·　MIT 开源'),
-                  foreground='#aaa', wraplength=232).pack(anchor='w', pady=(2, 4))
-        langrow = ttk.Frame(f)
-        langrow.pack(fill='x', pady=(2, 4))
-        ttk.Label(langrow, text=tr('语言')).pack(side='left')
-        self.lang_var = tk.StringVar()
-        self.lang_combo = ttk.Combobox(langrow, textvariable=self.lang_var,
-                                       values=list(LANGS.values()), state='readonly', width=14)
-        self.lang_combo.pack(side='left', padx=6)
-        self.lang_combo.set(LANGS[get_lang()])
-        self.lang_combo.bind('<<ComboboxSelected>>', self._on_language_change)
 
 
     # ---------- 设置绑定 ----------
@@ -1759,6 +1794,8 @@ class App:
         fmt = s.get('format', 'jpg')
         labels = dict((tr(v), k) for k, v in FORMAT_CHOICES)
         self.format_var.set(labels.get(fmt, labels.get('jpg', tr('JPG（可保留EXIF）'))))
+        ratio_labels = dict((tr(v), k) for k, v in EXPORT_RATIO_CHOICES)
+        self.export_ratio_var.set(ratio_labels.get(s.get('export_ratio', 'original'), tr('原比例')))
         self.style_var.set(self._style_labels().get(s.get('style', 'default'), tr('默认')))
         self.quality_var.set(s.get('jpeg_quality', 95))
         self.preserve_exif_var.set(bool(s.get('preserve_exif')))
@@ -1793,6 +1830,7 @@ class App:
         self.preserve_exif_var.trace_add('write', lambda *a: self._on_change())
         self.suffix_var.trace_add('write', lambda *a: self._on_change())
         self.overwrite_var.trace_add('write', lambda *a: self._on_change())
+        self.export_ratio_var.trace_add('write', lambda *a: self._on_change())
 
     def _on_preset(self, _evt=None):
         disp = self.preset_var.get()
@@ -1863,6 +1901,8 @@ class App:
         s['preserve_exif'] = bool(self.preserve_exif_var.get())
         s['suffix'] = self.suffix_var.get().strip()
         s['overwrite'] = bool(self.overwrite_var.get())
+        ratio_labels = dict((tr(v), k) for k, v in EXPORT_RATIO_CHOICES)
+        s['export_ratio'] = ratio_labels.get(self.export_ratio_var.get(), 'original')
 
 
     def _update_labels(self):
@@ -2910,6 +2950,8 @@ class App:
                                                   full_size=img.size, origin=(vx, vy), apply_style=False)
                 else:
                     out = self._render_with_style(base, self.settings, values)
+                    # 导出比例：整图预览时同步裁剪（放大看局部的 clamped 分支不重复裁）
+                    out = crop_to_export_ratio(out, self.settings.get('export_ratio', 'original'))
             except Exception as e:
                 self.status_var.set('预览渲染失败: %s' % e)
                 return
@@ -2999,6 +3041,7 @@ class App:
                     img = self._open_oriented(ph['path'], (ph.get('meta') or {}).get('orientation'))
                     values = build_values(ph['meta'], s)
                     out = self._render_with_style(img, s, values)
+                    out = crop_to_export_ratio(out, s.get('export_ratio', 'original'))
                     out = self._apply_export_hooks(out, ph['meta'], s)
                     base = os.path.splitext(ph['name'])[0]
                     suffix = s.get('suffix', '_wm').replace('\\', '').replace('/', '').replace(':', '').replace('*', '').replace('?', '').replace('"', '').replace('<', '').replace('>', '').replace('|', '')
@@ -3134,7 +3177,16 @@ def main():
     root = _create_root()
     try:
         style = ttk.Style(root)
-        style.theme_use('vista')
+        # 竖排侧栏（Vertical.TNotebook 的 tabposition）依赖 clam 主题；本体直接启用，
+        # 不再依赖主题插件——未装/禁用主题插件时右栏依旧竖排（主题插件加载后仅覆盖配色）。
+        try:
+            style.theme_use('clam')
+        except Exception:
+            style.theme_use('vista')
+        try:
+            style.configure('Vertical.TNotebook', tabposition='wn')
+        except Exception:
+            pass
     except Exception:
         pass
     App(root)

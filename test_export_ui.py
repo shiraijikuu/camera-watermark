@@ -96,5 +96,50 @@ class TestExportWorkerStats(unittest.TestCase):
         self.assertEqual(done['skip'], 1)
 
 
+class TestCropExportRatio(unittest.TestCase):
+    """导出比例居中裁剪纯函数 app.crop_to_export_ratio。"""
+    def _img(self, w, h):
+        return Image.new('RGB', (w, h))
+
+    def test_original_or_unknown_unchanged(self):
+        im = self._img(200, 100)
+        for key in ('original', None, '', 'unknown'):
+            self.assertIs(app.crop_to_export_ratio(im, key), im)
+
+    def test_landscape_to_square(self):
+        self.assertEqual(app.crop_to_export_ratio(self._img(200, 100), '1:1').size, (100, 100))
+
+    def test_portrait_to_square(self):
+        self.assertEqual(app.crop_to_export_ratio(self._img(100, 200), '1:1').size, (100, 100))
+
+    def test_landscape_to_4_5_crops_width(self):
+        # 200x100，目标 宽/高=0.8 -> 宽裁到 80，高不变
+        self.assertEqual(app.crop_to_export_ratio(self._img(200, 100), '4:5').size, (80, 100))
+
+    def test_portrait_to_wide_crops_height(self):
+        # 100x200，目标 16:9≈1.778 -> 高裁到 round(100/1.778)=56，宽不变
+        self.assertEqual(app.crop_to_export_ratio(self._img(100, 200), '16:9').size, (100, 56))
+
+    def test_already_matching_ratio_unchanged(self):
+        im = self._img(100, 100)
+        self.assertIs(app.crop_to_export_ratio(im, '1:1'), im)
+
+    def test_center_crop_keeps_middle_band(self):
+        # 左 50 列红、中间 100 列绿、右 50 列蓝；裁成 1:1 后应只剩中间绿带
+        im = Image.new('RGB', (200, 100), (0, 255, 0))
+        px = im.load()
+        for x in range(200):
+            for y in range(100):
+                if x < 50:
+                    px[x, y] = (255, 0, 0)
+                elif x >= 150:
+                    px[x, y] = (0, 0, 255)
+        out = app.crop_to_export_ratio(im, '1:1')
+        self.assertEqual(out.size, (100, 100))
+        op = out.load()
+        for xy in ((0, 0), (99, 0), (0, 99), (99, 99), (50, 50)):
+            self.assertEqual(op[xy], (0, 255, 0))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
