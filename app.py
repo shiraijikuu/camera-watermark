@@ -1571,7 +1571,8 @@ class App:
         if PLUGIN_API.tokens:
             extra = tr('   插件变量: ') + ' '.join('{%s}' % k for k in PLUGIN_API.tokens)
         ttk.Label(f, text=hint + extra, foreground='#888', wraplength=232).pack(anchor='w')
-        ttk.Label(f, text=tr('相机名覆盖（留空=自动识别品牌型号）')).pack(anchor='w', pady=(6, 2))
+        ttk.Label(f, text=tr('相机名覆盖（留空=自动识别品牌型号）'),
+                  wraplength=232).pack(anchor='w', pady=(6, 2))
         self.override_var = tk.StringVar()
         ttk.Entry(f, textvariable=self.override_var).pack(fill='x')
 
@@ -1764,7 +1765,9 @@ class App:
         self.suffix_var = tk.StringVar()
         ttk.Entry(row, textvariable=self.suffix_var, width=12).pack(side='left', padx=6)
         self.overwrite_var = tk.BooleanVar()
-        ttk.Checkbutton(f, text=tr('覆盖已存在文件（否则自动加 (1)(2)）'), variable=self.overwrite_var).pack(anchor='w', pady=4)
+        ttk.Checkbutton(f, text=tr('覆盖已存在文件'), variable=self.overwrite_var).pack(anchor='w', pady=(4, 0))
+        ttk.Label(f, text=tr('不覆盖时自动加 (1)(2) 编号'),
+                  foreground='#888', wraplength=232).pack(anchor='w', pady=(0, 4))
 
 
     # ---------- 设置绑定 ----------

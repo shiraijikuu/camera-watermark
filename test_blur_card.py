@@ -338,5 +338,66 @@ class TestBlurCardPlugin(unittest.TestCase):
         self.assertGreaterEqual(len(api.styles['blur_card']), 3)
 
 
+class TestBadgeRows(unittest.TestCase):
+    """参数标签框：值清洗、字段模板顺序、空值跳过、整管线冒烟。"""
+    def setUp(self):
+        self.mod = load_blur_card()
+        self.values = {'focal': '35mm', 'aperture': 'F1.79',
+                       'shutter': '1/2151s', 'iso': 'ISO 222'}
+
+    def _settings(self, order='跟随文字模板', tpl='', badge=True):
+        return {'template': tpl,
+                'plugin_values': {'blur-card': {
+                    'blur_card_badge_order': order, 'blur_card_badge': badge}}}
+
+    def test_clean_helpers(self):
+        m = self.mod
+        self.assertEqual(m._clean_aperture('F1.79'), '1.79')
+        self.assertEqual(m._clean_aperture('f/2.8'), '2.8')
+        self.assertEqual(m._clean_shutter('1/2151s'), '1/2151')
+        self.assertEqual(m._clean_iso('ISO 222'), '222')
+        self.assertEqual(m._clean_focal('35mm'), '35')
+
+    def test_fixed_preset_order_and_labels(self):
+        rows = m = self.mod._badge_rows(self.values, self._settings('F / S / ISO'))
+        self.assertEqual([k for k, _ in m], ['F', 'S', 'ISO'])
+        self.assertEqual([v for _, v in m], ['1.79', '1/2151', '222'])
+
+    def test_preset_with_focal(self):
+        rows = self.mod._badge_rows(self.values, self._settings('mm / F / S / ISO'))
+        self.assertEqual([k for k, _ in rows], ['mm', 'F', 'S', 'ISO'])
+        self.assertEqual(rows[0], ('mm', '35'))
+
+    def test_follow_template_token_order(self):
+        s = self._settings('跟随文字模板', '{iso} {aperture} {shutter}')
+        rows = self.mod._badge_rows(self.values, s)
+        self.assertEqual([k for k, _ in rows], ['ISO', 'F', 'S'])
+
+    def test_template_without_param_tokens_falls_back(self):
+        s = self._settings('跟随文字模板', '{make} {model}')
+        rows = self.mod._badge_rows(self.values, s)
+        self.assertEqual([k for k, _ in rows], ['F', 'S', 'ISO'])
+
+    def test_skip_empty_values(self):
+        v = dict(self.values); v['iso'] = ''
+        rows = self.mod._badge_rows(v, self._settings('F / S / ISO'))
+        self.assertEqual([k for k, _ in rows], ['F', 'S'])
+
+    def test_render_split_pipeline_smoke(self):
+        img = Image.new('RGB', (900, 1200), (40, 80, 120))
+        s = self._settings('F / S / ISO', '{make}\n{aperture} {shutter} {iso}')
+        s.update(font_family='微软雅黑', font_size_pct=2.2, text_color='#ffffff',
+                 text_opacity=1.0, offset_x_pct=0, offset_y_pct=0)
+        s['plugin_values']['blur-card'].update(
+            blur_card_layout='左右分离', blur_card_ratio='3:4', blur_card_fg_scale=72,
+            blur_card_margin=4, blur_card_bg_blur=3, blur_card_darken=30,
+            blur_card_backdrop=0, blur_card_round=12, blur_card_shadow=True,
+            blur_card_outline=True)
+        vals = dict(self.values, make='vivo', model='', camera='vivo',
+                    lens='', date='', time='')
+        out = self.mod._render(img.copy(), s, vals, source=img)
+        self.assertEqual(out.size, img.size)
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
