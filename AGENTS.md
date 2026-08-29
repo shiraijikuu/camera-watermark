@@ -1,4 +1,4 @@
-# Photo Watermark 项目规则
+# camera-watermark 项目规则
 
 除工作区规则（见 E:\codex\AGENTS.md）外，本项目的额外约定：
 
@@ -16,5 +16,5 @@
   拆成 `ui.py` / `plugin_store.py` / `updater.py`。改动大、风险高，暂缓，做功能时逐步迁移。
 - **可接受（暂不改）**：`PLUGIN_*` 三个并行全局列表（Data Clumps）；meta / 插件用 dict 而非类型
   （Primitive Obsession）——对小型 Tkinter 工具可容忍。
-- 错误日志：统一走 `_log()`（写 `pwm.log`）；配置/安装记录读取在"文件不存在"时不视为错误。
+- 错误日志：统一走 `_log()`（写 `camera-watermark.log`）；配置/安装记录读取在"文件不存在"时不视为错误。
 - **插件 UI 容器（未来主程序）**：多个 UI 插件若都往主窗口顶部加 bar 会堆叠；可预留固定"插件 UI 容器"位置（不急）。

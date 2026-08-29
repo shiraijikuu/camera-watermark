@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""app.py - Photo Watermark (PWM) - Tkinter 桌面版"""
+"""app.py - camera-watermark - Tkinter 桌面版"""
 import os
 import sys
 import json
@@ -56,8 +56,8 @@ TIMEOUT_UPDATE_DOWNLOAD = 180
 def _log(msg):
     """写日志：输出到控制台并追加到 APP_DIR/pwm.log（自身异常静默）。"""
     try:
-        print('[pwm]', msg)
-        with open(os.path.join(APP_DIR, 'pwm.log'), 'a', encoding='utf-8') as f:
+        print('[camera-watermark]', msg)
+        with open(os.path.join(APP_DIR, 'camera-watermark.log'), 'a', encoding='utf-8') as f:
             f.write(time.strftime('%Y-%m-%d %H:%M:%S') + ' ' + str(msg) + '\n')
     except Exception:
         pass
@@ -141,7 +141,7 @@ class PluginAPI:
         """下载 JSON（复用 urllib，带 UA 与超时）。供插件拉取 DLC 清单等。"""
         import urllib.request
         import json
-        req = urllib.request.Request(url, headers={'User-Agent': 'PhotoWatermark'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'camera-watermark'})
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode('utf-8'))
 
@@ -151,7 +151,7 @@ class PluginAPI:
         import os as _os
         _os.makedirs(_os.path.dirname(save_path), exist_ok=True)
         tmp = save_path + '.tmp'
-        req = urllib.request.Request(url, headers={'User-Agent': 'PhotoWatermark'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'camera-watermark'})
         with urllib.request.urlopen(req, timeout=timeout) as r, open(tmp, 'wb') as f:
             f.write(r.read())
         _os.replace(tmp, save_path)
@@ -1297,7 +1297,7 @@ class App:
             pass
         self.fonts = photo.available_fonts(FONTS_DIR)
 
-        root.title('Photo Watermark v' + APP_VERSION)
+        root.title('camera-watermark v' + APP_VERSION)
         root.geometry(WINDOW_MAIN_SIZE)
         root.minsize(*WINDOW_MAIN_MIN)
         self._build_ui()
@@ -1349,7 +1349,7 @@ class App:
         paned.pack(fill='both', expand=True, padx=10, pady=(0, 6))
 
         # ---------- 左栏：照片列表（固定初始宽，可拖拽）----------
-        left = ttk.Frame(paned, width=360)
+        left = ttk.Frame(paned, width=490)
         left.pack_propagate(False)          # 锁定固定宽，不被内部 Treeview 撑大
         paned.add(left, weight=0)
 
@@ -1396,7 +1396,18 @@ class App:
                              stretch=(c == 'name'))
         sb = ttk.Scrollbar(tree_wrap, orient='vertical', command=self.tree.yview)
         hsb = ttk.Scrollbar(tree_wrap, orient='horizontal', command=self.tree.xview)
-        self.tree.configure(yscrollcommand=sb.set, xscrollcommand=hsb.set)
+
+        def _auto_hsb(lo, hi):
+            """横向滚动条仅在列超出可视宽度时出现；全列可见时自动隐藏，不占底部空间。"""
+            hsb.set(lo, hi)
+            need = float(lo) > 0.0 or float(hi) < 1.0
+            mapped = bool(hsb.winfo_ismapped())
+            if need and not mapped:
+                hsb.pack(side='bottom', fill='x', before=self.tree)   # 恢复到底部
+            elif not need and mapped:
+                hsb.pack_forget()
+
+        self.tree.configure(yscrollcommand=sb.set, xscrollcommand=_auto_hsb)
         sb.pack(side='right', fill='y')
         hsb.pack(side='bottom', fill='x')
         self.tree.pack(side='left', fill='both', expand=True)
@@ -3104,7 +3115,7 @@ def _create_root():
     """创建主窗口。优先用 tkinterdnd2.TkinterDnD.Tk（自带拖放支持，64 位稳定）。"""
     try:  # Windows：先设 AppUserModelID，任务栏才会显示自定义图标而非默认分组图标
         import ctypes
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('shiraijikuu.photowatermark')
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('shiraijikuu.camera-watermark')
     except Exception:
         pass
     try:

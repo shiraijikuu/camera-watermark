@@ -1,6 +1,6 @@
 # Release Guide / 发布流程说明
 
-This document describes how to release a new version of Photo Watermark. 本文档说明如何发布 Photo Watermark 新版本。
+This document describes how to release a new version of camera-watermark. 本文档说明如何发布 camera-watermark 新版本。
 
 
 ## Version Policy / 版本策略（强制）
@@ -38,18 +38,18 @@ Edit these files / 修改以下文件：
     pip install -r requirements-dev.txt
     # 生成版本信息（从 app.py 的 APP_VERSION 读取，降低杀软误报）
     python make_version_info.py
-    pyinstaller --noconfirm --clean --onefile --windowed --name "PhotoWatermark" --hidden-import "PIL._tkinter_finder" --hidden-import "windnd" --collect-all "tkinterdnd2" --version-file version_info.txt app.py
+    pyinstaller --noconfirm --clean --onefile --windowed --name "camera-watermark" --hidden-import "PIL._tkinter_finder" --hidden-import "windnd" --collect-all "tkinterdnd2" --version-file version_info.txt app.py
 
 Output is in dist/. Then / 产物在 dist/，然后：
 - Copy the new exe as the hot-update asset / 复制新版 exe 作为热更新附件：
-    copy dist\PhotoWatermark.exe dist\PhotoWatermark-x.y.z.exe
+    copy dist\camera-watermark.exe dist\camera-watermark-x.y.z.exe
 
 ## 3. Prepare release packages / 准备发布包
 
     # portable package / 分发包（普通用户）
-    Compress-Archive -Path dist\* -DestinationPath releases\vX.Y.Z\PhotoWatermark-x.y.z-portable.zip
+    Compress-Archive -Path dist\* -DestinationPath releases\vX.Y.Z\camera-watermark-x.y.z-portable.zip
     # source package / 开源版（源码 + 成品）
-    Compress-Archive -Path open-source -DestinationPath releases\vX.Y.Z\PhotoWatermark-x.y.z-source.zip
+    Compress-Archive -Path open-source -DestinationPath releases\vX.Y.Z\camera-watermark-x.y.z-source.zip
 
 Note: keep dist and open-source out of git (see .gitignore). / 注意：dist 和 open-source 不进 Git（见 .gitignore）。
 
@@ -65,16 +65,16 @@ Note: keep dist and open-source out of git (see .gitignore). / 注意：dist 和
 
 1. Open / 打开：https://github.com/shiraijikuu/camera-watermark/releases/new
 2. Choose tag `vX.Y.Z` / 选择标签 vX.Y.Z
-3. Title: `Photo Watermark vX.Y.Z`
+3. Title: `camera-watermark vX.Y.Z`
 4. Description: paste the content of RELEASE_NOTES.md (bilingual) / 粘贴 RELEASE_NOTES.md 内容（中英双语）
 
 > **更新公告只保留当前版本 / Release notes keep ONLY the current version:**
 > `RELEASE_NOTES.md` 每次发布新版时**用新版本内容覆盖**（不累积历史）；完整历史见 `CHANGELOG.md`。
 > Overwrite `RELEASE_NOTES.md` with the new version's announcement each release (do not accumulate); full history lives in `CHANGELOG.md`.
 5. Attach these 3 files / 附件拖入这 3 个文件：
-   - `PhotoWatermark-x.y.z-portable.zip`
-   - `PhotoWatermark-x.y.z-source.zip`
-   - `PhotoWatermark-x.y.z.exe` (hot-update asset / 热更新下载用)
+   - `camera-watermark-x.y.z-portable.zip`
+   - `camera-watermark-x.y.z-source.zip`
+   - `camera-watermark-x.y.z.exe` (hot-update asset / 热更新下载用)
 6. Publish release / 发布
 
 ## 5.5 Purge CDN cache / 刷新 CDN 缓存（重要，发布后必做）

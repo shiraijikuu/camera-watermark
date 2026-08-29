@@ -1,4 +1,4 @@
-# 📢 Photo Watermark v2.0.0 — Release Notes / 更新公告
+# 📢 camera-watermark v2.0.0 — Release Notes / 更新公告
 
 **EN:** Major 2.0 update — style engine. (1) Watermark-style API now supports "whole-image redraw" styles (replaces_watermark) with full backward compatibility. (2) New "Blur Card" style: blurred dark background + centered clear photo (rounded corners / shadow / outline) + bottom camera-parameter info bar with auto-fit font — watermark text only on the blurred background. (3) Whole-redraw styles can overlay compatible styles: Blur Card + camera-brand logo image watermark at the same time (logo has size / position / rotation / opacity sliders). (4) 10 camera-brand logo presets (Canon / Sony / Nikon / Fujifilm / Hasselblad / Leica / Olympus / Panasonic / Pentax / Ricoh, white + transparent, 2048px) added to the image-watermark plugin.
 

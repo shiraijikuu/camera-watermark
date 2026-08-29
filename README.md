@@ -1,6 +1,6 @@
-# Photo Watermark (PWM) — 相机照片水印工具
+# camera-watermark — 相机照片水印工具
 
-**EN:** Photo Watermark is a friendly, open-source Windows helper for photographers. Pick a folder of camera photos, and it automatically reads the EXIF and stamps a clean watermark with your camera model, shutter, aperture and ISO. It handles RAW, lets you freely tweak position, size, color and font, exports in a click, supports plugins, and speaks 中文 / English / 繁體中文.
+**EN:** camera-watermark is a friendly, open-source Windows helper for photographers. Pick a folder of camera photos, and it automatically reads the EXIF and stamps a clean watermark with your camera model, shutter, aperture and ISO. It handles RAW, lets you freely tweak position, size, color and font, exports in a click, supports plugins, and speaks 中文 / English / 繁體中文.
 
 **中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
@@ -55,7 +55,7 @@
 
 ### Option 1: Run the packaged version (no Python needed) / 方式一：直接运行打包版（无需安装 Python）
 
-Download PhotoWatermark-vX.Y.Z-分发包.zip from Releases, unzip and double-click PhotoWatermark.exe. 从 Releases 下载分发包，解压后双击 PhotoWatermark.exe 即可。
+Download camera-watermark-vX.Y.Z-分发包.zip from Releases, unzip and double-click camera-watermark.exe. 从 Releases 下载分发包，解压后双击 camera-watermark.exe 即可。
 
 ### Option 2: Run from source / 方式二：从源码运行
 
@@ -120,7 +120,7 @@ Set update_url in config.json (JSON manifest URL), click "Check for Updates" to 
 ## Build from Source / 从源码打包 exe
 
     pip install -r requirements-dev.txt
-    pyinstaller --noconfirm --clean --onefile --windowed --name "PhotoWatermark" --hidden-import "PIL._tkinter_finder" --hidden-import "windnd" --collect-all "tkinterdnd2" --version-file version_info.txt app.py
+    pyinstaller --noconfirm --clean --onefile --windowed --name "camera-watermark" --hidden-import "PIL._tkinter_finder" --hidden-import "windnd" --collect-all "tkinterdnd2" --version-file version_info.txt app.py
 
 Put plugins/, fonts/ and USAGE.txt next to the exe in dist/ to distribute. 把 plugins/、fonts/、USAGE.txt 等放在 dist/ 的 exe 旁边即可分发。
 
@@ -139,17 +139,17 @@ See CHANGELOG.md; releases live in releases/vX.Y.Z/. 版本历史见 CHANGELOG.m
 
 ## Antivirus False Positive / 杀毒软件误报
 
-**EN:** Photo Watermark is open-source (MIT) and built with PyInstaller as an unsigned single-file exe. Some antivirus engines may flag it as a false positive (heuristics are sensitive to unsigned, self-extracting executables that also self-update). If your antivirus quarantines it:
+**EN:** camera-watermark is open-source (MIT) and built with PyInstaller as an unsigned single-file exe. Some antivirus engines may flag it as a false positive (heuristics are sensitive to unsigned, self-extracting executables that also self-update). If your antivirus quarantines it:
 
-1. **Unblock the downloaded file** (if it shows "Windows protected your PC"): right-click → Properties → Unblock; or run `Unblock-File .\PhotoWatermark.exe` in PowerShell.
-2. **Add an exclusion**: Windows Security → Virus & threat protection → Manage settings → Exclusions → add the folder containing PhotoWatermark.exe.
+1. **Unblock the downloaded file** (if it shows "Windows protected your PC"): right-click → Properties → Unblock; or run `Unblock-File .\camera-watermark.exe` in PowerShell.
+2. **Add an exclusion**: Windows Security → Virus & threat protection → Manage settings → Exclusions → add the folder containing camera-watermark.exe.
 3. **Report the false positive to Microsoft**: https://www.microsoft.com/en-us/wdsi/filesubmission (usually cleared within a few days).
 4. Verify it yourself: the source is public (MIT); build from source per RELEASE.md.
 
-**中文：** Photo Watermark 是开源（MIT）软件，用 PyInstaller 打包成无签名的单文件 exe。部分杀毒软件可能误报（启发式引擎对"无签名、自解压、还会自动更新"的程序比较敏感）。如果被杀软隔离：
+**中文：** camera-watermark 是开源（MIT）软件，用 PyInstaller 打包成无签名的单文件 exe。部分杀毒软件可能误报（启发式引擎对"无签名、自解压、还会自动更新"的程序比较敏感）。如果被杀软隔离：
 
-1. **解除下载锁定**（提示"Windows 已保护你的电脑"时）：右键 → 属性 → 解除锁定；或在 PowerShell 执行 `Unblock-File .\PhotoWatermark.exe`。
-2. **加入排除项**：Windows 安全中心 → 病毒和威胁防护 → 管理设置 → 排除项 → 添加包含 PhotoWatermark.exe 的文件夹。
+1. **解除下载锁定**（提示"Windows 已保护你的电脑"时）：右键 → 属性 → 解除锁定；或在 PowerShell 执行 `Unblock-File .\camera-watermark.exe`。
+2. **加入排除项**：Windows 安全中心 → 病毒和威胁防护 → 管理设置 → 排除项 → 添加包含 camera-watermark.exe 的文件夹。
 3. **向微软提交误报**：https://www.microsoft.com/en-us/wdsi/filesubmission （通常几天内清除）。
 4. 自行验证：源码公开（MIT），可按 RELEASE.md 从源码自行打包。
 

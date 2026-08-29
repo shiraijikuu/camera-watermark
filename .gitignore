@@ -15,5 +15,5 @@ plugin-repos/
 _stage-dist/
 _plugin_tmp/
 _testplugins/
-pwm.log
+camera-watermark.log
 *.spec

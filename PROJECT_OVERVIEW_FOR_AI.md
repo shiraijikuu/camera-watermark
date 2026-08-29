@@ -1,4 +1,4 @@
-# Photo Watermark (PWM) 项目结构说明
+# camera-watermark 项目结构说明
 
 > 供 AI 协作/审查用。项目：Windows 桌面相机照片水印软件（Python + Tkinter + Pillow，PyInstaller 打包）。
 

@@ -8,6 +8,15 @@
 
 ---
 
+## [未发布 / Unreleased]
+
+### 调整
+- 产品名统一改为 **camera-watermark**（与仓库同名，原 Photo Watermark / PWM）：窗口标题、exe 文件名
+  （camera-watermark.exe）、版本信息、任务栏 ID（shiraijikuu.camera-watermark）、日志文件
+  （camera-watermark.log）、README/文档、发布资产命名（camera-watermark-v2.0.0.*）全部同步
+
+---
+
 ## [2.0.0] - 2026-08-28
 
 ### 新增

@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v2.0.0/PhotoWatermark-v2.0.0.exe",
-  "note": "v2.0.0: 2.0 style engine + DLC + UI refactor (three-column, 8 themes, plugin menu). / 2.0 样式引擎 + DLC + UI 重构（三栏、8 主题、插件菜单）。",
-  "checksum": "70a1e14406765edaf73f3d058bd9d16df52262da2661766f52f59081d0bcac78"
+  "url": "https://github.com/shiraijikuu/camera-watermark/releases/download/v2.0.0/camera-watermark-v2.0.0.exe",
+  "note": "v2.0.0: renamed to camera-watermark (原 Photo Watermark / PWM) + 2.0 style engine + DLC + UI refactor. / 改名 camera-watermark + 2.0 样式引擎 + DLC + UI 重构。",
+  "checksum": "2d8860b236c41043baf333140601fb88afa8f467f16b551f34e49d01b8b73294"
 }
