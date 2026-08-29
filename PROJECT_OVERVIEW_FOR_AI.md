@@ -71,9 +71,9 @@
 
 | 插件 | 仓库 | 版本 | 功能 |
 |---|---|---|---|
-| **image-watermark** | `shiraijikuu/PhotoWatermark-image-watermark` | v1.3.0 | 1~5 个图片水印叠加（独立大小/位置/旋转/透明度）、10 相机品牌 logo 预设（白/透明 2048px）、水印 1 可与文字对齐（左/右/上/下+间距，透明 logo 用 getbbox、越界自动翻转）、图片缓存、汉化 |
-| **blur-card** | `shiraijikuu/PhotoWatermark-blur-card` | v1.1.0 | 模糊卡片样式：模糊背景（相对 vh 尺寸）+ 清晰前景（圆角/阴影/描边 %）+ 底部相机信息栏（文字可拖拽、word_spacing、非法值防御）；需主程序 >= 2.0.0 |
-| **theme-switcher** | `shiraijikuu/PhotoWatermark-theme-switcher` | v1.0.4 | 黑夜/白天/跟随系统主题，适配动态窗口 |
+| **image-watermark** | `shiraijikuu/camera-watermark-image-watermark` | v1.3.0 | 1~5 个图片水印叠加（独立大小/位置/旋转/透明度）、10 相机品牌 logo 预设（白/透明 2048px）、水印 1 可与文字对齐（左/右/上/下+间距，透明 logo 用 getbbox、越界自动翻转）、图片缓存、汉化 |
+| **blur-card** | `shiraijikuu/camera-watermark-blur-card` | v1.1.0 | 模糊卡片样式：模糊背景（相对 vh 尺寸）+ 清晰前景（圆角/阴影/描边 %）+ 底部相机信息栏（文字可拖拽、word_spacing、非法值防御）；需主程序 >= 2.0.0 |
+| **theme-switcher** | `shiraijikuu/camera-watermark-theme-switcher` | v1.0.4 | 黑夜/白天/跟随系统主题，适配动态窗口 |
 
 ## 五、版本与发布流程（严格 SemVer）
 

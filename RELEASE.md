@@ -99,7 +99,7 @@ otherwise users will get "checksum mismatch" and cannot install/update.
 发布/重新发布插件 zip 后，**必须同步更新 `plugins.json` 里的 `checksum`**（zip 的 SHA-256），否则用户会因
 "checksum 不匹配" 而无法安装/更新。计算方式：
 
-    sha256sum PhotoWatermark-image-watermark-vX.Y.Z.zip
+    sha256sum camera-watermark-image-watermark-vX.Y.Z.zip
 
 （建议后续用 GitHub Actions 在发布时自动计算并写回清单，避免手误。建议后续自动化。）
 

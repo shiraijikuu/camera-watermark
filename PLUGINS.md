@@ -166,7 +166,7 @@ def register(api):
 ```
 
 > 实战示例：**theme-switcher** 插件（主题切换：黑夜 / 白天 / 跟随系统）已发布为独立插件仓库
-> [PhotoWatermark-theme-switcher](https://github.com/shiraijikuu/PhotoWatermark-theme-switcher)，可在插件商店安装。
+> [camera-watermark-theme-switcher](https://github.com/shiraijikuu/camera-watermark-theme-switcher)，可在插件商店安装。
 
 ## 全部 API 一览
 

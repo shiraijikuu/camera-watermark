@@ -6,7 +6,7 @@
       "name": "Image Watermark",
       "description": "图片水印插件：1-5 个图片水印叠加、10 相机品牌 logo 预设、DLC 素材库（按需下载更多水印）、预设递归扫描、图片缓存，RAW 自动跳过",
       "author": "shiraijikuu",
-      "repo": "shiraijikuu/PhotoWatermark-image-watermark",
+      "repo": "shiraijikuu/camera-watermark-image-watermark",
       "license": "MIT",
       "version": "1.4.0",
       "tags": [
@@ -15,8 +15,8 @@
         "gif",
         "logo"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-image-watermark/releases/download/v1.4.0/PhotoWatermark-image-watermark-v1.4.0.zip",
-      "checksum": "c8dddc322b112ee67eda7c41368932906aa5cbb0a59cc7bb4bac14f0c8d6523c",
+      "install_url": "https://github.com/shiraijikuu/camera-watermark-image-watermark/releases/download/v1.4.0/camera-watermark-image-watermark-v1.4.0.zip",
+      "checksum": "dc3c07d80baa8666c5a235de21d765507989ad342cc437447538929b19dba990",
       "updated_at": "2026-08-29"
     },
     {
@@ -24,7 +24,7 @@
       "name": "Theme Switcher",
       "description": "主题切换：8 套精选配色（深夜蓝/纯黑/石墨/深林/紫晶/摩卡/亮白/暖米白）+ 跟随系统，菜单栏深色化、竖排标签、轻动效",
       "author": "shiraijikuu",
-      "repo": "shiraijikuu/PhotoWatermark-theme-switcher",
+      "repo": "shiraijikuu/camera-watermark-theme-switcher",
       "license": "MIT",
       "version": "2.0.0",
       "tags": [
@@ -33,8 +33,8 @@
         "dark-mode",
         "light-mode"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-theme-switcher/releases/download/v2.0.0/PhotoWatermark-theme-switcher-v2.0.0.zip",
-      "checksum": "67533b7f63bb8e8c965bf15dce0c8abf3e2d4b33e9ba6d9a8d9682a8de884e37",
+      "install_url": "https://github.com/shiraijikuu/camera-watermark-theme-switcher/releases/download/v2.0.0/camera-watermark-theme-switcher-v2.0.0.zip",
+      "checksum": "4d61b6a49aa70edf4f93371a8db11f620775f23ad1aa557a70803ce83bb6b333",
       "updated_at": "2026-08-29"
     },
     {
@@ -42,7 +42,7 @@
       "name": "Blur Card",
       "description": "模糊卡片水印样式：模糊背景 + 清晰前景 + 相机信息栏（相对尺寸、圆角/背景模糊按百分比、文字可拖拽、非法值防御，需主程序 >= 2.0.0）",
       "author": "shiraijikuu",
-      "repo": "shiraijikuu/PhotoWatermark-blur-card",
+      "repo": "shiraijikuu/camera-watermark-blur-card",
       "license": "MIT",
       "version": "1.1.0",
       "tags": [
@@ -51,8 +51,8 @@
         "blur",
         "card"
       ],
-      "install_url": "https://github.com/shiraijikuu/PhotoWatermark-blur-card/releases/download/v1.1.0/PhotoWatermark-blur-card-v1.1.0.zip",
-      "checksum": "51bec4801d366757f885989b2b2cdd828cb0b6fe6d24642932f3042b72f242ea",
+      "install_url": "https://github.com/shiraijikuu/camera-watermark-blur-card/releases/download/v1.1.0/camera-watermark-blur-card-v1.1.0.zip",
+      "checksum": "d44c66d3276120883e9234df6eba7b2967de38ce50f6e07c5573bb68a649eae3",
       "updated_at": "2026-08-28"
     }
   ]
