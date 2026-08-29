@@ -22,19 +22,19 @@
     {
       "id": "theme-switcher",
       "name": "Theme Switcher",
-      "description": "主题切换：8 套精选配色（深夜蓝/纯黑/石墨/深林/紫晶/摩卡/亮白/暖米白）+ 跟随系统，菜单栏深色化、竖排标签、轻动效",
+      "description": "主题切换：9 套精选配色（深夜蓝/纯黑/石墨/深林/紫晶/摩卡/樱花粉/亮白/暖米白）+ 跟随系统，菜单栏深色化、竖排标签、轻动效",
       "author": "shiraijikuu",
       "repo": "shiraijikuu/camera-watermark-theme-switcher",
       "license": "MIT",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "tags": [
         "theme",
         "ui",
         "dark-mode",
         "light-mode"
       ],
-      "install_url": "https://github.com/shiraijikuu/camera-watermark-theme-switcher/releases/download/v2.0.0/camera-watermark-theme-switcher-v2.0.0.zip",
-      "checksum": "4d61b6a49aa70edf4f93371a8db11f620775f23ad1aa557a70803ce83bb6b333",
+      "install_url": "https://github.com/shiraijikuu/camera-watermark-theme-switcher/releases/download/v2.1.0/camera-watermark-theme-switcher-v2.1.0.zip",
+      "checksum": "bf2e5e8109b03cce95649b3820a66f9f5851d60315d9bbce3c79dcfeb56a4908",
       "updated_at": "2026-08-29"
     },
     {
