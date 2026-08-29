@@ -30,6 +30,12 @@ CONFIG_PATH = os.path.join(APP_DIR, 'config.json')
 PLUGINS_DIR = os.path.join(APP_DIR, 'plugins')
 FONTS_DIR = os.path.join(APP_DIR, 'fonts')
 INSTALLED_META_PATH = os.path.join(PLUGINS_DIR, '.installed.json')  # 插件安装记录（版本/校验和/更新时间）
+
+
+def _resource_path(rel):
+    """内置只读资源路径：打包后在 PyInstaller 临时目录 _MEIPASS，开发时在源码目录。"""
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, rel)
 MAX_EXTRACT_TOTAL = 300 * 1024 * 1024   # 单次解压总量上限 300MB（zip 炸弹防护）
 MAX_EXTRACT_FILES = 2000                # 单次解压文件数量上限
 
@@ -3096,11 +3102,21 @@ class App:
 
 def _create_root():
     """创建主窗口。优先用 tkinterdnd2.TkinterDnD.Tk（自带拖放支持，64 位稳定）。"""
+    try:  # Windows：先设 AppUserModelID，任务栏才会显示自定义图标而非默认分组图标
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('shiraijikuu.photowatermark')
+    except Exception:
+        pass
     try:
         from tkinterdnd2 import TkinterDnD
-        return TkinterDnD.Tk()
+        root = TkinterDnD.Tk()
     except Exception:
-        return tk.Tk()
+        root = tk.Tk()
+    try:  # 窗口标题栏/任务栏，以及所有弹窗(Toplevel)的默认运行时图标
+        root.iconbitmap(default=_resource_path(os.path.join('assets', 'cwm.ico')))
+    except Exception:
+        pass
+    return root
 
 
 def main():
