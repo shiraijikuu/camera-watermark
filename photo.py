@@ -303,15 +303,44 @@ SONY_MODEL_MAP = {
     'ZV-E1': 'ZV-E1', 'ZV-1F': 'ZV-1F', 'ZV-1': 'ZV-1',
 }
 
-def friendly_camera_name(make, model):
+# 市场名自带的品牌/子品牌词（命中即视为完整名，不再前置拼接 Make，避免 "Xiaomi Redmi ..." 冗余）
+_BRAND_WORDS = ('redmi', 'xiaomi', 'poco', 'mi ', 'honor', 'huawei', 'oppo', 'vivo', 'iqoo',
+                'realme', 'oneplus', 'samsung', 'galaxy', 'iphone', 'apple', 'google', 'pixel',
+                'sony', 'canon', 'nikon', 'fujifilm', 'fuji', 'panasonic', 'leica', 'dji',
+                'meizu', 'nubia', 'zte', 'nokia', 'motorola')
+
+def _has_brand_prefix(text):
+    t = (text or '').strip().lower()
+    return any(t.startswith(w) for w in _BRAND_WORDS)
+
+# 安卓机 EXIF Model 多为工信部/内部代号，营销名 tag 缺失时用此表兜底（可持续补充）
+ANDROID_MODEL_MAP = {
+    '23049RAD8C': 'Redmi Note 12 Turbo',   # 红米 Note 12 Turbo（marble）
+}
+
+def _display_model(make, model, marketing=''):
+    """单个型号的「显示名」：厂商营销名 > 内部代号映射 > 原始 Model。"""
+    mo = (model or '').strip()
+    mk = (marketing or '').strip()
+    if mk and mk.upper() != mo.upper():
+        return mk
+    if mo and mo.upper() in ANDROID_MODEL_MAP:
+        return ANDROID_MODEL_MAP[mo.upper()]
+    return mo
+
+def friendly_camera_name(make, model, marketing=''):
     m = (make or '').strip()
     mo = (model or '').strip()
+    mk = (marketing or '').strip()
     clean_make = MAKE_MAP.get(m.upper()) or MAKE_MAP.get(m) or m
-    if m.upper() == 'SONY' and mo in SONY_MODEL_MAP:
+    display = _display_model(m, mo, mk)
+    if not display:
+        return clean_make
+    if m.upper() == 'SONY' and not mk and mo in SONY_MODEL_MAP:
         return 'Sony ' + SONY_MODEL_MAP[mo]
-    if mo:
-        return (clean_make + ' ' + mo) if clean_make else mo
-    return clean_make
+    if _has_brand_prefix(display):          # 市场名已含品牌/子品牌（如 Redmi ...）直接用
+        return display
+    return (clean_make + ' ' + display) if clean_make else display
 
 def format_datetime(s):
     """EXIF 时间字符串 'YYYY:MM:DD HH:MM:SS' -> (date, time)"""
@@ -367,7 +396,7 @@ def read_meta(path):
         'path': path, 'name': name, 'ext': ext_of(name), 'raw': raw,
         'size': os.path.getsize(path) if os.path.exists(path) else 0,
         'width': 0, 'height': 0, 'orientation': 1, 'has_preview': True,
-        'make': '', 'model': '', 'software': '', 'lens': '',
+        'make': '', 'model': '', 'model_display': '', 'software': '', 'lens': '',
         'focal': 0.0, 'exposure_time': 0.0, 'f_number': 0.0, 'iso': 0,
         'date_time': '', 'camera_text': '', 'shutter_text': '', 'aperture_text': '',
         'iso_text': '', 'focal_text': '', 'lens_text': '', 'date_text': '', 'time_text': '',
@@ -408,6 +437,8 @@ def read_meta(path):
 
         make = _get_exif_value(z, 271, '')
         model = _get_exif_value(z, 272, '')
+        # 安卓机 Model 多为内部代号，厂商常把市场名写在自定义 tag 0x9A00(39424)（IFD0/ExifIFD 都可能）
+        marketing = _get_exif_value(z, 39424, '') or _get_exif_value(e, 39424, '')
         orientation = z.get(274, 1)
         try:
             orientation = int(orientation)
@@ -442,6 +473,7 @@ def read_meta(path):
 
         meta['make'] = make
         meta['model'] = model
+        meta['model_display'] = _display_model(make, model, marketing)
         meta['software'] = _get_exif_value(z, 305, '')
         meta['lens'] = lens
         meta['focal'] = focal
@@ -452,7 +484,7 @@ def read_meta(path):
         meta['width'] = w
         meta['height'] = h
         meta['date_time'] = dt
-        meta['camera_text'] = friendly_camera_name(make, model)
+        meta['camera_text'] = friendly_camera_name(make, model, marketing)
         meta['shutter_text'] = format_shutter(exp)
         meta['aperture_text'] = format_aperture(fnum)
         meta['iso_text'] = format_iso(iso)
@@ -469,7 +501,7 @@ def values_for(meta, settings):
     return {
         'camera': cam,
         'make': (meta or {}).get('make', ''),
-        'model': (meta or {}).get('model', ''),
+        'model': (meta or {}).get('model_display', '') or (meta or {}).get('model', ''),
         'shutter': (meta or {}).get('shutter_text', ''),
         'aperture': (meta or {}).get('aperture_text', ''),
         'iso': (meta or {}).get('iso_text', ''),

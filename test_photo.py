@@ -41,6 +41,24 @@ class TestFormat(unittest.TestCase):
         self.assertEqual(photo.friendly_camera_name('Canon', 'EOS R5'), 'Canon EOS R5')
         self.assertEqual(photo.friendly_camera_name('', ''), '')
 
+    def test_android_marketing_name(self):
+        # 厂商市场名 tag(39424) 优先；Redmi 是子品牌，直接用、不再前置拼 Xiaomi
+        self.assertEqual(
+            photo.friendly_camera_name('Xiaomi', '23049RAD8C', 'Redmi Note 12 Turbo'),
+            'Redmi Note 12 Turbo')
+        # 无市场名 tag 时走内部代号 -> 市场名映射兜底
+        self.assertEqual(photo.friendly_camera_name('Xiaomi', '23049RAD8C', ''),
+                         'Redmi Note 12 Turbo')
+        # 市场名自带其它品牌词同样不重复拼接
+        self.assertEqual(
+            photo.friendly_camera_name('samsung', 'SM-S9080', 'Galaxy S22 Ultra'),
+            'Galaxy S22 Ultra')
+        self.assertEqual(photo._display_model('Xiaomi', '23049RAD8C', 'Redmi Note 12 Turbo'),
+                         'Redmi Note 12 Turbo')
+        self.assertEqual(photo._display_model('Xiaomi', '23049RAD8C', ''), 'Redmi Note 12 Turbo')
+        # 索尼既有别名逻辑不受影响
+        self.assertEqual(photo.friendly_camera_name('SONY', 'ILCE-7C', ''), 'Sony A7C')
+
     def test_default_template(self):
         # 新默认预设：{make}  {model}   {focal}  {shutter}  {aperture}  {iso}
         self.assertEqual(

@@ -381,7 +381,8 @@ class TestBadgeRows(unittest.TestCase):
         self.assertEqual([k for k, _ in rows], ['F', 'S', 'ISO'])
         s2 = self._settings('跟随文字模板', '{make} {model}')
         rows2 = self.mod._badge_rows(self.values, s2)
-        self.assertEqual([k for k, _ in rows2], ['品牌', '型号'])
+        self.assertEqual([k for k, _ in rows2], ['F', 'S', 'ISO'])   # 无数值 token 兜底
+        self.assertEqual(self.mod._badge_title(self.values, s2), 'NIKON D3200')  # 品牌型号走无框标题
 
     def test_skip_empty_values(self):
         v = dict(self.values); v['iso'] = ''
@@ -389,19 +390,52 @@ class TestBadgeRows(unittest.TestCase):
         self.assertEqual([k for k, _ in rows], ['F', 'S'])
 
     def test_preset_with_brand(self):
-        rows = self.mod._badge_rows(self.values, self._settings('品牌 / F / S / ISO'))
-        self.assertEqual([k for k, _ in rows], ['品牌', 'F', 'S', 'ISO'])
-        self.assertEqual(rows[0], ('品牌', 'NIKON'))
+        s = self._settings('品牌 / F / S / ISO')
+        rows = self.mod._badge_rows(self.values, s)
+        self.assertEqual([k for k, _ in rows], ['F', 'S', 'ISO'])       # 品牌不进框
+        self.assertEqual(self.mod._badge_title(self.values, s), 'NIKON')  # 仅作无框标题
 
     def test_preset_with_brand_model(self):
-        rows = self.mod._badge_rows(self.values, self._settings('品牌 / 型号 / F / S / ISO'))
-        self.assertEqual([k for k, _ in rows], ['品牌', '型号', 'F', 'S', 'ISO'])
-        self.assertEqual(rows[1], ('型号', 'D3200'))
+        s = self._settings('品牌 / 型号 / F / S / ISO')
+        rows = self.mod._badge_rows(self.values, s)
+        self.assertEqual([k for k, _ in rows], ['F', 'S', 'ISO'])  # 品牌型号不进框
+        self.assertEqual(self.mod._badge_title(self.values, s), 'NIKON D3200')  # 无框标题
+
+    def test_brand_title_dedup_prefix(self):
+        v = dict(self.values, model='NIKON D3200')      # model 已含 make 前缀
+        s = self._settings('品牌 / 型号 / F / S / ISO')
+        self.assertEqual(self.mod._badge_title(v, s), 'NIKON D3200')      # 不重复品牌
+
+    def test_brand_title_subbrand_no_dup(self):
+        # model 已是市场名且自带子品牌词(Redmi)，不再前置拼 Xiaomi
+        v = dict(self.values, make='Xiaomi', model='Redmi Note 12 Turbo')
+        s = self._settings('品牌 / 型号 / F / S / ISO')
+        self.assertEqual(self.mod._badge_title(v, s), 'Redmi Note 12 Turbo')
+
+    def test_left_brand_strips_param_tokens(self):
+        v = dict(self.values, make='Xiaomi', model='Redmi Note 12 Turbo')
+        # 默认单行全字段模板：左块只留品牌型号，光圈/快门/ISO/焦距一律剔除归右块
+        tpl = '{make}  {model}   {focal}  {shutter}  {aperture}  {iso}'
+        left = self.mod._left_brand_text(tpl, v)
+        for leaked in ('1.79', '1/2151', '222', '35mm'):
+            self.assertNotIn(leaked, left)
+        self.assertIn('Xiaomi', left)
+        self.assertIn('Redmi Note 12 Turbo', left)
+
+    def test_left_brand_empty_when_only_params(self):
+        tpl = '{focal} {shutter} {aperture} {iso}'
+        self.assertEqual(self.mod._left_brand_text(tpl, self.values), '')
+
+    def test_left_brand_keeps_camera_token(self):
+        v = dict(self.values, camera='Redmi Note 12 Turbo')
+        self.assertEqual(self.mod._left_brand_text('{camera}', v), 'Redmi Note 12 Turbo')
 
     def test_badge_skips_empty_brand(self):
         v = dict(self.values); v['make'] = ''; v['model'] = ''
-        rows = self.mod._badge_rows(v, self._settings('品牌 / 型号 / F / S / ISO'))
-        self.assertEqual([k for k, _ in rows], ['F', 'S', 'ISO'])
+        s = self._settings('品牌 / 型号 / F / S / ISO')
+        rows = self.mod._badge_rows(v, s)
+        self.assertEqual([k for k, _ in rows], ['F', 'S', 'ISO'])  # 数值照常出框
+        self.assertEqual(self.mod._badge_title(v, s), '')                # 无品牌则无标题
 
     def test_badge_horizontal_render_smoke(self):
         # 下参数（宽条）横排 badge 渲染：不崩、尺寸不变、无前景白字干扰
