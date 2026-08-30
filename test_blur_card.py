@@ -556,6 +556,28 @@ class TestBrandLogoPreset(unittest.TestCase):
             out = self.mod._render(img.copy(), self._settings(lay), v, source=img)
             self.assertEqual(out.size, img.size, lay)
 
+    def test_frameless_order_detected(self):
+        m = self.mod
+        self.assertTrue(m._frameless_order(self._settings('下参数', '品牌标 / F / S / ISO（无框）')))
+        self.assertFalse(m._frameless_order(self._settings('下参数', '品牌标 / F / S / ISO')))
+        # 无框仍属于「品牌标」类（品牌仍用 logo 图）
+        self.assertTrue(m._is_logo_order(self._settings('左参数', '品牌标 / F / S / ISO（无框）')))
+
+    def test_frameless_rows_and_title(self):
+        st = self._settings('左右分离', '品牌标 / F / S / ISO（无框）')
+        self.assertEqual([k for k, _ in self.mod._badge_rows(self.values, st)], ['F', 'S', 'ISO'])
+        self.assertEqual(self.mod._badge_title(self.values, st), 'SONY')  # 缺 logo 时文字兜底
+
+    def test_frameless_render_smoke_all_layouts(self):
+        # 无框模板五布局渲染不崩、尺寸不变
+        img = Image.new('RGB', (900, 1200), (40, 60, 90))
+        for lay in ['下参数', '上参数', '左参数', '右参数', '左右分离']:
+            st = self._settings(lay, '品牌标 / F / S / ISO（无框）')
+            st.update(font_family='微软雅黑', font_size_pct=2.2, text_color='#ffffff',
+                      text_opacity=1.0, offset_x_pct=0, offset_y_pct=0)
+            out = self.mod._render(img.copy(), st, dict(self.values), source=img)
+            self.assertEqual(out.size, img.size, lay)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
