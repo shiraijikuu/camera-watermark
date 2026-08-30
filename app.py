@@ -834,14 +834,8 @@ class PluginSettingsWindow:
                         th._wm_keep_bg = True
                         if ipath and os.path.exists(str(ipath)):
                             try:
-                                im = Image.open(str(ipath))
-                                im.seek(0)
-                                im = im.convert('RGBA')
-                                im.thumbnail((56, 56), Image.LANCZOS)
-                                ph = ImageTk.PhotoImage(im)
-                                if not hasattr(self, '_gal_photos'):
-                                    self._gal_photos = []
-                                self._gal_photos.append(ph)
+                                # 缩略图进程内缓存：5 个槽位画廊复用、重复打开设置窗不再重复解码 2048px 原图
+                                ph = self._gallery_thumb(ipath)
                                 th.config(image=ph, compound='top')
                             except Exception:
                                 pass
@@ -932,6 +926,31 @@ class PluginSettingsWindow:
             return
         save_config(self.parent.settings)   # 实时落盘，无需点「保存」
         self.parent._schedule_preview()
+
+    def _gallery_thumb(self, ipath, size=(56, 56)):
+        """预设缩略图（进程内缓存）。图片水印有 5 个槽位画廊、每个画廊几十张 2048px 原图，
+        每次打开设置窗都全尺寸 convert + LANCZOS 缩放会明显卡顿；这里按绝对路径缓存缩小后的
+        PIL 图，多个画廊/重复开窗共用、仅首次解码；每个 Tk 控件仍单独建 PhotoImage（由 56px 小图
+        创建，开销极小），并统一保引用防 GC 图裂。"""
+        cache = getattr(self, '_gal_thumb_cache', None)
+        if cache is None:
+            cache = self._gal_thumb_cache = {}
+        photos = getattr(self, '_gal_photos', None)
+        if photos is None:
+            photos = self._gal_photos = []
+        ap = os.path.abspath(str(ipath))
+        thumb = cache.get(ap)
+        if thumb is None:
+            im = Image.open(ap)
+            im.seek(0)
+            if im.mode != 'RGBA':                  # 本身已带透明通道的 logo 不再重复全尺寸 convert
+                im = im.convert('RGBA')
+            im.thumbnail(size, Image.BILINEAR)     # 56px 小图双线性足够、远快于 LANCZOS
+            thumb = im
+            cache[ap] = thumb
+        ph = ImageTk.PhotoImage(thumb)
+        photos.append(ph)
+        return ph
 
     def _gallery_pick(self, pname, key, item, tile):
         """点击预设缩略图：高亮选中项 + 实时更新预览"""

@@ -521,20 +521,18 @@ class TestBrandLogoPreset(unittest.TestCase):
                     white += 1
         self.assertGreater(white, 5, '左右分离左块应出现白色品牌 logo 像素')
 
-    def test_logo_text_order_detected(self):
+    def test_retired_logotext_migrates_to_frameless(self):
+        # 已下线的「品牌标 + 文字」自动迁移为无框品牌标（仍是 logo 类、五布局不崩）
         m = self.mod
-        self.assertTrue(m._is_logo_text_order(self._settings('下参数', '品牌标 + 文字')))
-        self.assertFalse(m._is_logo_text_order(self._settings('下参数', '品牌标 / F / S / ISO')))
-        self.assertFalse(m._is_logo_text_order(self._settings('下参数', 'F / S / ISO')))
-
-    def test_logo_text_render_smoke_all_layouts(self):
-        # 「品牌标 + 文字」：五布局都不崩、尺寸不变（SONY 有 logo，走 logo+文字路径）
+        self.assertFalse(hasattr(m, '_is_logo_text_order'))
         img = Image.new('RGB', (900, 1200), (40, 60, 90))
         for lay in ['下参数', '上参数', '左参数', '右参数', '左右分离']:
             st = self._settings(lay, '品牌标 + 文字')
+            self.assertEqual(m._badge_order(st), '品牌标 / F / S / ISO（无框）')
+            self.assertTrue(m._is_logo_order(st))
             st.update(font_family='微软雅黑', font_size_pct=2.2, text_color='#ffffff',
                       text_opacity=1.0, offset_x_pct=0, offset_y_pct=0)
-            out = self.mod._render(img.copy(), st, dict(self.values), source=img)
+            out = m._render(img.copy(), st, dict(self.values), source=img)
             self.assertEqual(out.size, img.size, lay)
 
     def test_badge_scale_render_smoke(self):
