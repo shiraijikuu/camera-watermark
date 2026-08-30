@@ -478,10 +478,10 @@ class TestBrandLogoPreset(unittest.TestCase):
         self.values = {'make': 'SONY', 'model': 'ILCE-7CM2', 'focal': '35mm',
                        'aperture': 'F1.79', 'shutter': '1/250s', 'iso': 'ISO100'}
 
-    def _settings(self, layout):
+    def _settings(self, layout, order='品牌标 / F / S / ISO'):
         return {'template': '{make} {model}\n{aperture} {shutter} {iso}', 'font_family': '',
                 'plugin_values': {'blur-card': {'blur_card_layout': layout, 'blur_card_ratio': '3:4',
-                    'blur_card_badge': True, 'blur_card_badge_order': '品牌标 / F / S / ISO'}}}
+                    'blur_card_badge': True, 'blur_card_badge_order': order}}}
 
     def test_is_logo_order(self):
         self.assertTrue(self.mod._is_logo_order(self._settings('下参数')))
@@ -520,6 +520,33 @@ class TestBrandLogoPreset(unittest.TestCase):
                 if r > 235 and g > 235 and b > 235:
                     white += 1
         self.assertGreater(white, 5, '左右分离左块应出现白色品牌 logo 像素')
+
+    def test_logo_text_order_detected(self):
+        m = self.mod
+        self.assertTrue(m._is_logo_text_order(self._settings('下参数', '品牌标 + 文字')))
+        self.assertFalse(m._is_logo_text_order(self._settings('下参数', '品牌标 / F / S / ISO')))
+        self.assertFalse(m._is_logo_text_order(self._settings('下参数', 'F / S / ISO')))
+
+    def test_logo_text_render_smoke_all_layouts(self):
+        # 「品牌标 + 文字」：五布局都不崩、尺寸不变（SONY 有 logo，走 logo+文字路径）
+        img = Image.new('RGB', (900, 1200), (40, 60, 90))
+        for lay in ['下参数', '上参数', '左参数', '右参数', '左右分离']:
+            st = self._settings(lay, '品牌标 + 文字')
+            st.update(font_family='微软雅黑', font_size_pct=2.2, text_color='#ffffff',
+                      text_opacity=1.0, offset_x_pct=0, offset_y_pct=0)
+            out = self.mod._render(img.copy(), st, dict(self.values), source=img)
+            self.assertEqual(out.size, img.size, lay)
+
+    def test_badge_scale_render_smoke(self):
+        # 品牌标/参数框大小 50/200 渲染不崩、尺寸不变
+        img = Image.new('RGB', (900, 1200), (40, 60, 90))
+        for scale in (50, 100, 200):
+            st = self._settings('左右分离', '品牌标 / F / S / ISO')
+            st.update(font_family='微软雅黑', font_size_pct=2.2, text_color='#ffffff',
+                      text_opacity=1.0, offset_x_pct=0, offset_y_pct=0)
+            st['plugin_values']['blur-card']['blur_card_badge_scale'] = scale
+            out = self.mod._render(img.copy(), st, dict(self.values), source=img)
+            self.assertEqual(out.size, img.size, 'scale=%s' % scale)
 
     def test_unknown_brand_falls_back_all_layouts(self):
         # 匹配不到 logo 时五种布局都不崩（回退文字品牌/仅参数）
