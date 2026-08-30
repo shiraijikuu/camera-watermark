@@ -4,20 +4,20 @@
     {
       "id": "image-watermark",
       "name": "Image Watermark",
-      "description": "图片水印插件：1-5 个图片水印叠加、10 相机品牌 logo 预设、DLC 素材库（按需下载更多水印）、预设递归扫描、图片缓存，RAW 自动跳过",
+      "description": "图片水印插件：1-5 个图片水印叠加、26 品牌 logo（相机10 + 手机14 + DJI/Insta360）白/透明预设、DLC 素材库、预设递归扫描、图片缓存，RAW 自动跳过",
       "author": "shiraijikuu",
       "repo": "shiraijikuu/camera-watermark-image-watermark",
       "license": "MIT",
-      "version": "1.4.0",
+      "version": "1.5.0",
       "tags": [
         "watermark",
         "image",
         "gif",
         "logo"
       ],
-      "install_url": "https://github.com/shiraijikuu/camera-watermark-image-watermark/releases/download/v1.4.0/camera-watermark-image-watermark-v1.4.0.zip",
-      "checksum": "dc3c07d80baa8666c5a235de21d765507989ad342cc437447538929b19dba990",
-      "updated_at": "2026-08-29"
+      "install_url": "https://github.com/shiraijikuu/camera-watermark-image-watermark/releases/download/v1.5.0/camera-watermark-image-watermark-v1.5.0.zip",
+      "checksum": "7907c0506f740a9ccf1f3586cd1562e4576bf0a7cd802e681f55060a45e06e0c",
+      "updated_at": "2026-08-30"
     },
     {
       "id": "theme-switcher",
