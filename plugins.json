@@ -40,20 +40,20 @@
     {
       "id": "blur-card",
       "name": "Blur Card",
-      "description": "模糊卡片水印样式：模糊背景 + 清晰前景 + 相机参数，5 种排版（下/上/左/右/左右分离）、参数标签框（品牌/型号/F/S/ISO，宽条横排窄条纵排）、画面比例预设、边距/圆角/背景模糊按百分比、文字可拖拽（需主程序 >= 2.0.0）",
+      "description": "模糊卡片水印样式：模糊背景 + 清晰前景 + 相机参数，5 种排版（下/上/左/右/左右分离）、参数标签框（品牌/型号/F/S/ISO/品牌标 logo）、画面比例预设、边距/圆角/背景模糊按百分比、文字可拖拽（需主程序 >= 2.0.0）",
       "author": "shiraijikuu",
       "repo": "shiraijikuu/camera-watermark-blur-card",
       "license": "MIT",
-      "version": "1.4.0",
+      "version": "1.5.0",
       "tags": [
         "watermark",
         "style",
         "blur",
         "card"
       ],
-      "install_url": "https://github.com/shiraijikuu/camera-watermark-blur-card/releases/download/v1.4.0/camera-watermark-blur-card-v1.4.0.zip",
-      "checksum": "7e7f4808da151a45da098250cbb28f1cc88e53339fa84afc813f8a07fc13911b",
-      "updated_at": "2026-08-29"
+      "install_url": "https://github.com/shiraijikuu/camera-watermark-blur-card/releases/download/v1.5.0/camera-watermark-blur-card-v1.5.0.zip",
+      "checksum": "c03e84ae39095b27eae5e2de2f2c52a70b05539db76d4f06edeb5899386be0e6",
+      "updated_at": "2026-08-30"
     }
   ]
 }

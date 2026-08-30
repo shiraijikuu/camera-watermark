@@ -738,6 +738,8 @@ class PluginSettingsWindow:
                 canvas.yview_scroll(-1 * int(delta / 120), 'units')
 
         def _bind(w):
+            if getattr(w, '_is_gallery', False):
+                return  # 横向画廊自行处理滚轮，跳过外层竖向绑定
             w.bind('<MouseWheel>', _on_mw)
             w.bind('<Button-4>', _on_mw)
             w.bind('<Button-5>', _on_mw)
@@ -796,7 +798,8 @@ class PluginSettingsWindow:
                     gal = ttk.Frame(row)
                     gal.pack(side='left', fill='x', expand=True)
                     # canvas 与 hsb 直接放 gal（去掉中间 hb 嵌套），side top/bottom 明确上下
-                    canvas = tk.Canvas(gal, height=96, highlightthickness=0)
+                    canvas = tk.Canvas(gal, height=104, highlightthickness=0)
+                    canvas._is_gallery = True  # 横向画廊标记：外层竖向滚轮跳过此子树
                     hsb = ttk.Scrollbar(gal, orient='horizontal', command=canvas.xview)
                     inner = ttk.Frame(canvas)
                     _win_id = canvas.create_window((0, 0), window=inner, anchor='nw')
@@ -814,8 +817,9 @@ class PluginSettingsWindow:
                             _c.configure(scrollregion=(0, 0, req_w, req_h))
                     inner.bind('<Configure>', lambda e: _update_scroll())
                     canvas.configure(xscrollcommand=hsb.set)
-                    canvas.pack(side='top', fill='both', expand=True)
+                    # 先让横向滚动条占住底部再放画布，否则 expand 画布会把滚动条挤到不可见
                     hsb.pack(side='bottom', fill='x')
+                    canvas.pack(side='top', fill='x')
                     tiles = []
                     for it in opts:
                         lbl = str(it.get('label', ''))
@@ -847,6 +851,31 @@ class PluginSettingsWindow:
                         tiles.append((tile, it))
                     # 所有 tile pack 完后延迟一帧更新 scrollregion（确保 inner 宽度已算好）
                     canvas.after_idle(_update_scroll)
+                    # 画廊区域内滚轮=横向浏览预设（替代外层竖向），递归绑到画布与每个缩略图
+                    def _gal_wheel(e, _gc=canvas):
+                        _num = getattr(e, 'num', None)
+                        _d = getattr(e, 'delta', 0)
+                        if _num == 4:
+                            _steps = -1
+                        elif _num == 5:
+                            _steps = 1
+                        elif _d:
+                            _steps = -1 * int(_d / 120)
+                        else:
+                            _steps = 0
+                        if _steps:
+                            _gc.xview_scroll(_steps, 'units')
+                            return 'break'
+                    def _bind_gal(w):
+                        w.bind('<MouseWheel>', _gal_wheel)
+                        w.bind('<Button-4>', _gal_wheel)
+                        w.bind('<Button-5>', _gal_wheel)
+                        for _c in w.winfo_children():
+                            _bind_gal(_c)
+                    _bind_gal(inner)
+                    canvas.bind('<MouseWheel>', _gal_wheel)
+                    canvas.bind('<Button-4>', _gal_wheel)
+                    canvas.bind('<Button-5>', _gal_wheel)
                     self.widgets[pname][key] = ('gallery', {'tiles': tiles})
                     # 插件声明了 DLC 素材源 -> gallery 下方加「下载更多素材」按钮
                     _dlc = PLUGIN_API.dlc_sources.get(pname)
@@ -1969,14 +1998,14 @@ class App:
 
     # ---------- 字体 ----------
     def add_font(self):
-        # Windows 原生文件对话框的多扩展名必须用分号分隔（空格分隔会导致过滤器失效/返回空）
+        # Tk separates multiple globs with SPACE ('*.ttf *.otf'); semicolon would match nothing
         path = filedialog.askopenfilename(
             title=tr('选择字体文件'),
-            filetypes=[('Font files (*.ttf;*.otf;*.ttc)', '*.ttf;*.otf;*.ttc'),
+            filetypes=[('Font files (*.ttf, *.otf, *.ttc)', '*.ttf *.otf *.ttc'),
                        ('TrueType (*.ttf)', '*.ttf'),
                        ('OpenType (*.otf)', '*.otf'),
                        ('Collection (*.ttc)', '*.ttc'),
-                       (tr('所有文件'), '*.*')])
+                       ('All files (*.*)', '*.*')])
         if not path:
             _log('添加字体：取消（未选择文件）')
             return

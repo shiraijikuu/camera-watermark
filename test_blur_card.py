@@ -471,5 +471,64 @@ class TestBadgeRows(unittest.TestCase):
         self.assertEqual(out.size, img.size)
 
 
+class TestBrandLogoPreset(unittest.TestCase):
+    """「品牌标 / F / S / ISO」：品牌=image-watermark 白色 logo 图、参数=文字框；五布局通用、左右分离左图右参。"""
+    def setUp(self):
+        self.mod = load_blur_card()
+        self.values = {'make': 'SONY', 'model': 'ILCE-7CM2', 'focal': '35mm',
+                       'aperture': 'F1.79', 'shutter': '1/250s', 'iso': 'ISO100'}
+
+    def _settings(self, layout):
+        return {'template': '{make} {model}\n{aperture} {shutter} {iso}', 'font_family': '',
+                'plugin_values': {'blur-card': {'blur_card_layout': layout, 'blur_card_ratio': '3:4',
+                    'blur_card_badge': True, 'blur_card_badge_order': '品牌标 / F / S / ISO'}}}
+
+    def test_is_logo_order(self):
+        self.assertTrue(self.mod._is_logo_order(self._settings('下参数')))
+        self.assertFalse(self.mod._is_logo_order(
+            {'plugin_values': {'blur-card': {'blur_card_badge_order': 'F / S / ISO'}}}))
+
+    def test_brand_logo_path_match(self):
+        p = self.mod._brand_logo_path({'make': 'SONY'})
+        self.assertTrue(p and p.endswith('sony_w.png'))
+        self.assertEqual(os.path.basename(self.mod._brand_logo_path({'make': 'NIKON CORPORATION'}) or ''),
+                         'nikon_w.png')
+        self.assertIsNone(self.mod._brand_logo_path({'make': 'UNKNOWN-MOBILE'}))
+        self.assertIsNone(self.mod._brand_logo_path({'make': ''}))
+
+    def test_logo_order_rows_are_params_only(self):
+        st = self._settings('左右分离')
+        rows = self.mod._badge_rows(self.values, st)
+        self.assertEqual([k for k, _ in rows], ['F', 'S', 'ISO'])      # 品牌不进参数框
+        self.assertEqual(self.mod._badge_title(self.values, st), 'SONY')  # 缺 logo 时文字兜底
+
+    @unittest.skipUnless(os.path.exists(os.path.join(
+        BASE, 'plugins', 'image-watermark', 'presets', 'sony_w.png')),
+        'image-watermark 预设未安装')
+    def test_split_left_draws_logo(self):
+        # 左右分离：左块出现白色 SONY logo 像素，整体不崩、尺寸不变
+        img = Image.new('RGB', (900, 1200), (40, 60, 90))
+        st = self._settings('左右分离')
+        out = self.mod._render(img.copy(), st, dict(self.values), source=img)
+        self.assertEqual(out.size, img.size)
+        _, boxes, _ = self.mod._geometry(900, 1200, st)
+        x0, y0, x1, y1 = boxes[0]
+        px = out.load(); white = 0
+        for y in range(y0 + 2, y1 - 2, 4):
+            for x in range(x0 + 2, x1 - 2, 4):
+                r, g, b = px[x, y][:3]
+                if r > 235 and g > 235 and b > 235:
+                    white += 1
+        self.assertGreater(white, 5, '左右分离左块应出现白色品牌 logo 像素')
+
+    def test_unknown_brand_falls_back_all_layouts(self):
+        # 匹配不到 logo 时五种布局都不崩（回退文字品牌/仅参数）
+        v = dict(self.values, make='UNKNOWN')
+        for lay in ['下参数', '上参数', '左参数', '右参数', '左右分离']:
+            img = Image.new('RGB', (900, 1200), (40, 60, 90))
+            out = self.mod._render(img.copy(), self._settings(lay), v, source=img)
+            self.assertEqual(out.size, img.size, lay)
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

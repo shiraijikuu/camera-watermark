@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """photo.py - 相机照片水印核心逻辑（不依赖 GUI，可独立测试）"""
 import os
+import sys
+import json
 import struct
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from lang import tr
@@ -313,19 +315,57 @@ def _has_brand_prefix(text):
     t = (text or '').strip().lower()
     return any(t.startswith(w) for w in _BRAND_WORDS)
 
-# 安卓机 EXIF Model 多为工信部/内部代号，营销名 tag 缺失时用此表兜底（可持续补充）
+# 安卓机 EXIF Model 多为工信部/内部代号，营销名 tag 缺失时用此表兜底（手工精修，优先级最高）
 ANDROID_MODEL_MAP = {
     '23049RAD8C': 'Redmi Note 12 Turbo',   # 红米 Note 12 Turbo（marble）
 }
 
+# 外置型号对照库（data/android_models.json，来源 KHwang9883/MobileModels，CC BY-NC-SA 4.0）
+# 约 4300 条 / ~146KB，仅在首次遇到内部代号时懒加载一次，不占启动与渲染开销。
+_EXT_MODEL_CACHE = None
+
+def _model_data_candidates():
+    # android_models.json 候选目录：打包 exe 旁 > PyInstaller 临时目录 > 源码目录
+    dirs = []
+    if getattr(sys, 'frozen', False):
+        dirs.append(os.path.join(os.path.dirname(sys.executable), 'data'))
+    meipass = getattr(sys, '_MEIPASS', None)
+    if meipass:
+        dirs.append(os.path.join(meipass, 'data'))
+    dirs.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data'))
+    return dirs
+
+def _load_ext_models():
+    # 懒加载外置型号库并缓存；缺失或损坏时静默回退空表，不影响主流程
+    global _EXT_MODEL_CACHE
+    if _EXT_MODEL_CACHE is not None:
+        return _EXT_MODEL_CACHE
+    _EXT_MODEL_CACHE = {}
+    try:
+        for d in _model_data_candidates():
+            fp_json = os.path.join(d, 'android_models.json')
+            if os.path.isfile(fp_json):
+                with open(fp_json, encoding='utf-8') as f:
+                    raw = json.load(f)
+                _EXT_MODEL_CACHE = {str(k).strip().upper(): str(v) for k, v in raw.items()}
+                break
+    except Exception:
+        _EXT_MODEL_CACHE = {}
+    return _EXT_MODEL_CACHE
+
 def _display_model(make, model, marketing=''):
-    """单个型号的「显示名」：厂商营销名 > 内部代号映射 > 原始 Model。"""
+    # 显示名优先级：厂商营销名 > 内置手工映射 > 外置型号库 > 原始 Model
     mo = (model or '').strip()
     mk = (marketing or '').strip()
     if mk and mk.upper() != mo.upper():
         return mk
-    if mo and mo.upper() in ANDROID_MODEL_MAP:
-        return ANDROID_MODEL_MAP[mo.upper()]
+    if mo:
+        key = mo.upper()
+        if key in ANDROID_MODEL_MAP:
+            return ANDROID_MODEL_MAP[key]
+        ext = _load_ext_models()
+        if key in ext:
+            return ext[key]
     return mo
 
 def friendly_camera_name(make, model, marketing=''):

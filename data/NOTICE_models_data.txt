@@ -1,0 +1,9 @@
+型号对照数据 android_models.json
+来源: KHwang9883/MobileModels  https://github.com/KHwang9883/MobileModels (分支 master, 抓取于 2026-08-30)
+许可: CC BY-NC-SA 4.0  https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+1. 由上述项目 brands/*.md 经 Markdown->JSON 转换并清洗显示名(去内存规格/渠道后缀), 属衍生作品。
+2. BY: 保留原作者署名与来源链接。
+3. NC: 仅限非商业, 软件须保持免费; 商业化需另获授权或换数据源。
+4. SA: 本数据继续以 CC BY-NC-SA 4.0 发布, 不适用主代码 MIT(数据与代码为聚合关系)。
+5. 商标归各厂商; 数据可能滞后/有误, 以官方为准。条数: 4307
