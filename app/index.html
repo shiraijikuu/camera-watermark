@@ -1292,7 +1292,9 @@ async function checkUpdate(silent){
   if(!remote)throw new Error('no version');
   const cmp=(a,b)=>{const pa=a.split('.').map(Number),pb=b.split('.').map(Number);for(let i=0;i<3;i++){if((pa[i]||0)>(pb[i]||0))return 1;if((pa[i]||0)<(pb[i]||0))return -1;}return 0;};
   if(cmp(remote,APP_VERSION)>0){
-   const url=j.download_url||j.url||'https://github.com/shiraijikuu/camera-watermark/releases';
+   const ua=navigator.userAgent||'';const native=window.Capacitor&&(window.Capacitor.isNativePlatform?window.Capacitor.isNativePlatform():false);
+   const dl=(native||/Android|iPhone|iPad|iPod|Mobile/i.test(ua))?(j.download_android||j.download_url):(j.download_windows||j.download_url);
+   const url=dl||j.url||'https://github.com/shiraijikuu/camera-watermark/releases';
    showModal(L('发现新版本 v'+remote,'New version v'+remote),
     L('当前版本 v'+APP_VERSION+'，最新版本 v'+remote+'。\n\n是否前往下载？','Current v'+APP_VERSION+', latest v'+remote+'.\n\nGo to download?'),
     [{text:L('稍后','Later'),cls:''},{text:L('下载','Download'),cls:'primary',onclick:()=>{window.open(url,'_blank');}}]);
