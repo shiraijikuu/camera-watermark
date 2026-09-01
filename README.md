@@ -4,6 +4,12 @@
 
 **中文：** 一个给摄影爱好者准备的 Windows 小工具。选中照片文件夹，它自动读出相机参数，帮你把相机型号、快门、光圈、ISO 整整齐齐地印在照片上。支持 RAW，位置、大小、颜色、字体随意调，一键批量导出，还能装插件，界面有中 / 英 / 繁三种语言。
 
+> **v3.0（跨平台重写 / cross-platform rewrite）：** 同一份 HTML5 Canvas 内核，分别打包 Android（Capacitor）与 Windows（Electron），源码仓库：
+> - **Android**：[shiraijikuu/camera-watermark-android](https://github.com/shiraijikuu/camera-watermark-android)
+> - **Windows**：[shiraijikuu/camera-watermark-windows](https://github.com/shiraijikuu/camera-watermark-windows)
+>
+> 本仓库是经典 **v2.0 Python 桌面版**（Windows Tkinter，支持 RAW + 插件体系），继续维护。
+
 - **Version / 版本：** v2.0.0
 - **Author / 作者：** Shiraijikuu (GitHub)
 - **AI assistance / AI 协助：** OpenAI Codex
@@ -50,6 +56,16 @@
 - 导出：逐文件进度 + 结果汇总 + 打开输出文件夹
 - 热更新 + 校验和检测（config.json 配置 update_url；同版本号重新发布也能检测到）
 - 设置自动保存（config.json）
+
+## Repositories / 仓库
+
+| 版本 / Version | 平台 / Platform | 仓库 / Repository |
+|---|---|---|
+| v3.0 | Android（Capacitor） | [shiraijikuu/camera-watermark-android](https://github.com/shiraijikuu/camera-watermark-android) |
+| v3.0 | Windows（Electron） | [shiraijikuu/camera-watermark-windows](https://github.com/shiraijikuu/camera-watermark-windows) |
+| v2.0 | Windows（Python Tkinter） | 本仓库 / this repo |
+
+> v3.0 的更新清单在 `app/update.json`（`download_android` / `download_windows` 分别指向两端 release）。
 
 ## Quick Start / 快速开始
 
