@@ -1,0 +1,12 @@
+{
+  "version": "3.0",
+  "coreVersion": "3.0",
+  "shellVersion": "3.0.0",
+  "releaseDate": "2026-09-01",
+  "download_url": "https://github.com/shiraijikuu/camera-watermark/releases/latest",
+  "core_url": "https://cdn.jsdelivr.net/gh/shiraijikuu/camera-watermark@main/app/index.html",
+  "notes": {
+    "zh": "Camera-WaterMark 3.0：全新界面与主题系统；离线 EXIF 读取，导入即显示文字水印；修复放大后拖拽平移；图片/模糊卡片水印、批量全分辨率导出；新增检查更新；Windows 与 Android 版本。",
+    "en": "Camera-WaterMark 3.0: redesigned UI and themes; offline EXIF so text watermark shows right after import; fixed pan after zoom; logo / blur-card watermarks, full-res batch export; update check; Windows and Android builds."
+  }
+}
