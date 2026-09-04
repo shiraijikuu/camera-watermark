@@ -347,6 +347,9 @@ body:not(.isnative) #btnCheckUpdate,body:not(.isnative) #btnCheckUpdateM{display
         <label class="chk"><input type="checkbox" id="frameLens"><span data-i18n="f_lens">镜头</span></label>
         <label class="chk"><input type="checkbox" id="frameDate"><span data-i18n="f_date">日期</span></label>
       </div>
+      <div class="row" style="margin-top:8px"><label data-i18n="f_pw">主图占比</label><input type="range" id="framePhotoWidth" min="80" max="100" step="1"><span class="val" id="framePhotoWidthVal">100%</span></div>
+      <div class="row"><label data-i18n="f_ib">底栏高度</label><input type="range" id="frameInfoBarH" min="0" max="200" step="2"><span class="val" id="frameInfoBarHVal">自动</span></div>
+      <div class="row"><label data-i18n="f_mg">上下边距</label><input type="range" id="frameMargin" min="0" max="10" step="0.5"><span class="val" id="frameMarginVal">0%</span></div>
     </div>
     <div class="group hidden" id="grpBlur">
       <h4 data-i18n="g_blur">模糊卡片</h4>
@@ -489,7 +492,7 @@ function setTheme(key){document.documentElement.dataset.theme=resolveTheme(key);
 
 /* ================= 状态（对齐 Python DEFAULT_SETTINGS + 插件） ================= */
 const DEF_TPL='{make}  {model}\n{focal}  {aperture}  {shutter}  {iso}';
-const APP_VERSION='3.0';const APP_BUILD=6; // 单调递增：每次发版(含同版本修订)+1，与安卓 versionCode 对齐，用于同版本更新检测
+const APP_VERSION='3.0';const APP_BUILD=7; // 单调递增：每次发版(含同版本修订)+1，与安卓 versionCode 对齐，用于同版本更新检测
 const SOCIAL={douyin:'https://v.douyin.com/aySgkT0fxTQ/',bilibili:'https://b23.tv/yJr6O00',github:'https://github.com/shiraijikuu'}; // 顶部社交链接
 const UPDATE_URL='https://cdn.jsdelivr.net/gh/shiraijikuu/camera-watermark-android@main/update.json';
 const state={
@@ -506,7 +509,8 @@ const state={
  imgEnabled:false, imgCount:1, imgAlign:'无', imgGap:1.5,
  slots:[0,1,2,3,4].map(i=>({logo:i===0?'sony':'',custom:null,img:null,size:15,x:50,y:i===0?88:50,rot:0,op:100})),
  format:'jpg', quality:95, suffix:'_wm', exportRatio:'raw',
- zoom:100, panX:0, panY:0, theme:'auto', search:'', frameTpl:'classic', frameLogo:true, frameModel:true, frameParams:true, frameLens:false, frameDate:true
+ zoom:100, panX:0, panY:0, theme:'auto', search:'', frameTpl:'classic', frameLogo:true, frameModel:true, frameParams:true, frameLens:false, frameDate:true,
+ framePhotoWidth:100, frameInfoBarH:0, frameMargin:0, framePhotoOffX:0, framePhotoOffY:0
 };
 /* 比例（对齐 blur-card RATIO_ORDER + 导出比例） */
 const RATIOS=[['raw',null],['auto','auto'],['21:9',21/9],['16:9',16/9],['3:2',3/2],['4:3',4/3],['1:1',1],['4:5',4/5],['3:4',3/4],['2:3',2/3],['9:16',9/16]];
@@ -603,11 +607,11 @@ function pickRatioVal(label,sw,sh){
 }
 function computeOut(ph){
  let sw=ph.src.width,sh=ph.src.height;
- if(state.style==='frame'){const t=getFrame(state.frameTpl);const full=frameOutSize(sw,sh,t);
+ if(state.style==='frame'){const t=getFrame(state.frameTpl);const o=frameOpts();const full=frameOutSize(sw,sh,t,o);
    const rv=pickRatioVal(state.exportRatio,full.W,full.H);
    if(!rv)return full;
    let fW,fH;if(full.W/full.H>rv){fH=full.H;fW=Math.round(fH*rv);}else{fW=full.W;fH=Math.round(fW/rv);}
-   return{W:fW,H:fH,fcx:(full.W-fW)/2,fcy:(full.H-fH)/2,FW:full.W,FH:full.H};}
+   return{W:fW,H:fH};}
   const rv=pickRatioVal(state.style==='blur'?state.blurRatio:state.exportRatio,sw,sh);
  if(!rv)return{W:sw,H:sh};
  let W,H; if(sw/sh>rv){H=sh;W=Math.round(sh*rv);}else{W=sw;H=Math.round(W/rv);}
@@ -628,7 +632,7 @@ function renderTo(c,W,H,ph,crop,fcrop){
  const src=ph.src;
  if(window.__CMP__){c.drawImage(src,crop?crop.cx:0,crop?crop.cy:0,W,H,0,0,W,H);return;}
  if(state.style==='blur'){drawBlurStyle(c,W,H,ph,src,crop);}
-  else if(state.style==='frame'){drawFrame(c,W,H,ph,src,crop,fcrop);}
+  else if(state.style==='frame'){drawFrame(c,W,H,ph,src,crop);}
  else{ // 原图（按导出比例裁剪）
    c.drawImage(src,crop?crop.cx:0,crop?crop.cy:0,W,H,0,0,W,H);
    ph._textRect=drawTextWatermark(c,W,H,ph,false);
@@ -637,11 +641,11 @@ function renderTo(c,W,H,ph,crop,fcrop){
 }
 function render(){
  const ph=curPhoto();if(!ph)return;
- const out=computeOut(ph);const W=out.W,H=out.H;ph._crop=(out.cx||out.cy)?{cx:out.cx,cy:out.cy}:null;ph._fcrop=out.FW?{fcx:out.fcx,fcy:out.fcy,FW:out.FW,FH:out.FH}:null;
+ const out=computeOut(ph);const W=out.W,H=out.H;ph._crop=(out.cx||out.cy)?{cx:out.cx,cy:out.cy}:null;
  const cap=1600,k=Math.min(1,cap/Math.max(W,H));
  cv.width=Math.round(W*k);cv.height=Math.round(H*k);
  ctx.setTransform(k,0,0,k,0,0);
- renderTo(ctx,W,H,ph,ph._crop,ph._fcrop);
+ renderTo(ctx,W,H,ph,ph._crop);
  ph._W=W;ph._H=H;
  document.getElementById('sizeText').textContent=W+'×'+H+(k<1?' · 预览'+Math.round(k*100)+'%':'');
  applyView();
@@ -736,11 +740,24 @@ const FRAMES=[
  {id:'datestamp',cat:'pro',zh:'日期纪念',en:'Date stamp',bg:'#ffffff',inset:{t:.045,b:.16,l:.045,r:.045},bar:{place:'center'},dateAccent:'#d9772b',tc:'#222222',sc:'#b5b5b5',photo:{shadow:true}}
 ];
 function getFrame(id){for(const f of FRAMES){if(f.id===id)return f;}return FRAMES[0];}
-function frameOutSize(sw,sh,t){const I=t.inset;return{W:Math.round(sw/(1-I.l-I.r)),H:Math.round(sh/(1-I.t-I.b))};}
-function frameGeometry(W,H,t){
- const I=t.inset;const ax=I.l*W,ay=I.t*H,aw=W*(1-I.l-I.r),ah=H*(1-I.t-I.b);
+function frameOpts(){return{photoWidth:state.framePhotoWidth,infoBarH:state.frameInfoBarH,margin:state.frameMargin/100,offX:state.framePhotoOffX,offY:state.framePhotoOffY};}
+function frameOutSize(sw,sh,t,o){
+ o=o||frameOpts();
+ const I={...t.inset};
+ if(o.margin>0){I.t=o.margin;I.b=o.margin;}
+ if(o.infoBarH>0){I.b=o.infoBarH/(sh+o.infoBarH);}
+ return{W:Math.round(sw/(1-I.l-I.r)),H:Math.round(sh/(1-I.t-I.b))};
+}
+function frameGeometry(W,H,t,o){
+ o=o||frameOpts();
+ const I={...t.inset};
+ if(o.margin>0){I.t=o.margin;I.b=o.margin;}
+ if(o.infoBarH>0){I.b=o.infoBarH/Math.max(1,H);}
+ let ax=I.l*W,ay=I.t*H,aw=W*(1-I.l-I.r),ah=H*(1-I.t-I.b);
+ if(o.photoWidth&&o.photoWidth<100){const nw=aw*o.photoWidth/100;ax=ax+(aw-nw)/2;aw=nw;}
  let box;
- if(t.contentRatio){box=fitBox([ax,ay,ax+aw,ay+ah],t.contentRatio,1);}else{box=[ax,ay,ax+aw,ay+ah];}
+ const ratio=o.ratio||t.contentRatio;
+ if(ratio){box=fitBox([ax,ay,ax+aw,ay+ah],ratio,1);}else{box=[ax,ay,ax+aw,ay+ah];}
  return{photo:box,area:[ax,ay,ax+aw,ay+ah]};
 }
 /* 白标实时染色：把 presets 白色 logo 染成指定文字色，深底染浅/浅底染深（不依赖原色文件） */
@@ -753,13 +770,13 @@ function tintLogo(brand,color){
  x.drawImage(base,0,0);x.globalCompositeOperation='source-in';x.fillStyle=color;x.fillRect(0,0,cv.width,cv.height);
  _tintCache[key]=cv;return cv;
 }
-function frameDrawPhoto(c,src,g,t,crop){
+function frameDrawPhoto(c,src,g,t,crop,offX,offY){
  let[px,py,qx,qy]=g.photo;let pw=qx-px,ph=qy-py;
  if(t.mat){const o=Math.min(pw,ph)*(t.mat.out||.01);c.fillStyle=t.mat.color;c.fillRect(px-o,py-o,pw+2*o,ph+2*o);}
  const rad=t.photo.round?Math.min(pw,ph)*t.photo.round:0;
  if(t.photo.shadow){c.save();c.shadowColor='rgba(0,0,0,.28)';c.shadowBlur=Math.min(pw,ph)*0.03;c.shadowOffsetY=Math.min(pw,ph)*0.012;c.fillStyle='#000';rr(c,px,py,pw,ph,rad);c.fill();c.restore();}
  c.save();if(rad>0){rr(c,px,py,pw,ph,rad);c.clip();}
- drawCoverInto(c,src,px,py,pw,ph,crop);
+ drawCoverInto(c,src,px,py,pw,ph,crop,offX,offY);
  c.restore();
 }
 function frameText(c,txt,x,y,fs,w,color,align){c.font=w+' '+fs+'px '+fontStack();c.textAlign=align;c.textBaseline='middle';c.fillStyle=color;c.fillText(txt,x,y);}
@@ -850,16 +867,18 @@ function drawFrameDecor(c,which,W,H,g,t){
    c.fillStyle=t.accent;rr(c,p1x-tw,p0y+fs*0.2,tw,th,th*0.2);c.fill();frameText(c,txt,p1x-tw/2,p0y+fs*0.2+th/2,fs,'700','#ffffff','center');
  }
 }
-function drawFrame(c,W,H,ph,src,crop,fcrop){
- if(fcrop&&fcrop.FW){const oc=document.createElement('canvas');oc.width=Math.round(fcrop.FW);oc.height=Math.round(fcrop.FH);const ox=oc.getContext('2d');drawFrameFull(ox,fcrop.FW,fcrop.FH,ph,src,crop);c.drawImage(oc,fcrop.fcx,fcrop.fcy,W,H,0,0,W,H);return;}
- drawFrameFull(c,W,H,ph,src,crop);}
+function drawFrame(c,W,H,ph,src,crop){drawFrameFull(c,W,H,ph,src,crop);}
 function drawFrameFull(c,W,H,ph,src,crop){
  const t=getFrame(state.frameTpl);
+ const o=frameOpts();
+ const full=frameOutSize(ph.src.width,ph.src.height,t,o);
+ const rv=pickRatioVal(state.exportRatio,full.W,full.H);
+ if(rv)o.ratio=rv;
  if(t.bg==='blur'){c.save();c.filter='blur('+vh(H,3.6)+'px) saturate(0.9)';drawCoverInto(c,src,0,0,W,H,crop);c.filter='none';c.restore();c.fillStyle='rgba(0,0,0,.22)';c.fillRect(0,0,W,H);}
  else{c.fillStyle=t.bg;c.fillRect(0,0,W,H);}
- const g=frameGeometry(W,H,t);
+ const g=frameGeometry(W,H,t,o);
  (t.decor||[]).forEach(d=>{if(d==='sprocketTB'||d==='sprocketLR'||d==='sprocketT')drawFrameDecor(c,d,W,H,g,t);});
- frameDrawPhoto(c,src,g,t,crop);
+ frameDrawPhoto(c,src,g,t,crop,o.offX,o.offY);
  const v=buildValues(ph);
  drawFrameInfo(c,W,H,g,t,v);
  (t.decor||[]).forEach(d=>{if(d!=='sprocketTB'&&d!=='sprocketLR'&&d!=='sprocketT')drawFrameDecor(c,d,W,H,g,t);});
@@ -897,10 +916,15 @@ function drawBlurStyle(c,W,H,ph,src,crop){
  // 3) 信息水印
  drawBlurWM(c,W,H,ph,wm,L);
 }
-function drawCoverInto(c,src,dx,dy,dw,dh,crop){ // 源图 cover 铺满目标矩形（考虑导出裁剪）
+function drawCoverInto(c,src,dx,dy,dw,dh,crop,offX,offY){ // 源图 cover 铺满目标矩形（考虑导出裁剪+用户偏移）
+ offX=offX||0;offY=offY||0;
  const baseW=crop?src.width-(crop.cx*2):src.width,baseH=crop?src.height-(crop.cy*2):src.height;
  const ir=baseW/baseH,tr=dw/dh;let sw,sh,sx,sy;
- if(ir>tr){sh=baseH;sw=sh*tr;sx=(baseW-sw)/2+(crop?crop.cx:0);sy=crop?crop.cy:0;}else{sw=baseW;sh=sw/tr;sx=crop?crop.cx:0;sy=(baseH-sh)/2+(crop?crop.cy:0);}
+ if(ir>tr){sh=baseH;sw=sh*tr;sx=(baseW-sw)/2+(crop?crop.cx:0);sy=crop?crop.cy:0;
+   const maxX=(baseW-sw)/2;sx+=clamp(offX,-1,1)*maxX;sy+=clamp(offY,-1,1)*0;
+ }else{sw=baseW;sh=sw/tr;sx=crop?crop.cx:0;sy=(baseH-sh)/2+(crop?crop.cy:0);
+   const maxY=(baseH-sh)/2;sx+=clamp(offX,-1,1)*0;sy+=clamp(offY,-1,1)*maxY;
+ }
  c.drawImage(src,sx,sy,sw,sh,dx,dy,dw,dh);
 }
 function drawContainImg(c,src,x,y,w,h,crop){ // fit_box 已按比例，cover 即 ImageOps.fit
@@ -1104,7 +1128,12 @@ function fillSelect(id,items,key,onchange){
  items.forEach(it=>{const o=el('option');o.value=it.v;o.textContent=it.t;s.append(o);});
  s.value=state[key];s.onchange=()=>{state[key]=isNaN(+s.value)||String(s.value).trim()===''?s.value:+s.value;onchange&&onchange();scheduleRender();};
 }
-function buildFrameSelect(){const s=document.getElementById('frameTpl');if(!s)return;s.innerHTML='';const CN={bar:'经典底栏',letter:'电影黑边',brand:'品牌风',film:'胶片相纸',pro:'专业流行'},EN={bar:'Classic',letter:'Cinematic',brand:'Brand',film:'Film',pro:'Pro'};FRAME_CATS.forEach(([cid])=>{const og=document.createElement('optgroup');og.label=LANG==='en'?EN[cid]:CN[cid];FRAMES.filter(f=>f.cat===cid).forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=LANG==='en'?f.en:f.zh;og.append(o);});s.append(og);});s.value=state.frameTpl;s.onchange=()=>{state.frameTpl=s.value;scheduleRender();};['frameLogo','frameModel','frameParams','frameLens','frameDate'].forEach(k=>{const e=document.getElementById(k);if(!e)return;e.checked=state[k];e.onchange=()=>{state[k]=e.checked;scheduleRender();};});}
+function buildFrameSelect(){const s=document.getElementById('frameTpl');if(!s)return;s.innerHTML='';const CN={bar:'经典底栏',letter:'电影黑边',brand:'品牌风',film:'胶片相纸',pro:'专业流行'},EN={bar:'Classic',letter:'Cinematic',brand:'Brand',film:'Film',pro:'Pro'};FRAME_CATS.forEach(([cid])=>{const og=document.createElement('optgroup');og.label=LANG==='en'?EN[cid]:CN[cid];FRAMES.filter(f=>f.cat===cid).forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=LANG==='en'?f.en:f.zh;og.append(o);});s.append(og);});s.value=state.frameTpl;s.onchange=()=>{state.frameTpl=s.value;scheduleRender();};['frameLogo','frameModel','frameParams','frameLens','frameDate'].forEach(k=>{const e=document.getElementById(k);if(!e)return;e.checked=state[k];e.onchange=()=>{state[k]=e.checked;scheduleRender();};});
+ const _bfs=(id,key,fmt)=>{const e=document.getElementById(id);if(!e)return;const v=document.getElementById(id+'Val');e.value=state[key];v.textContent=fmt(state[key]);e.oninput=()=>{state[key]=+e.value;v.textContent=fmt(state[key]);scheduleRender();};};
+ _bfs('framePhotoWidth','framePhotoWidth',v=>v+'%');
+ _bfs('frameInfoBarH','frameInfoBarH',v=>v>0?v+'px':'自动');
+ _bfs('frameMargin','frameMargin',v=>v+'%');
+ }
 function buildControls(){
  // 滑块（range + 可手输 number）
  sliderTo('c_fontSizePct','fontSizePct','字号 %宽','Font %W',0.8,6,0.1);
@@ -1437,13 +1466,30 @@ _bindExport('btnExport');_bindExport('btnExportM');
 const modalMask=document.getElementById('modalMask');
 function openModal(title,html){document.getElementById('modalTitle').textContent=title;document.getElementById('modalBody').innerHTML=html;modalMask.classList.add('open');}
 document.getElementById('modalClose').onclick=()=>modalMask.classList.remove('open');modalMask.onclick=e=>{if(e.target===modalMask)modalMask.classList.remove('open');};
+// 水印配置预设（保存/加载/删除到 localStorage）
+const PRESET_KEY='cwm_watermark_presets_v1';
+const PRESET_UI_KEYS=['style','template','cameraOverride','fields','fontFamily','bold','fontSizePct','lineSpacing','wordSpacing','textColor','textOpacity','anchor','marginPct','offsetXPct','offsetYPct','bgEnabled','bgColor','bgOpacity','bgPadding','outlineEnabled','outlineColor','outlineWidth','shadowEnabled','shadowBlur','blurRatio','blurLayout','fgScale','blurMargin','bgBlur','darken','fgRound','fgShadow','fgOutline','badgeEnabled','badgeOrder','badgeAlign','badgeScale','overlayImage','imgEnabled','imgCount','imgAlign','imgGap','slots','format','quality','suffix','exportRatio','frameTpl','frameLogo','frameModel','frameParams','frameLens','frameDate','framePhotoWidth','frameInfoBarH','frameMargin'];
+function loadPresets(){try{return JSON.parse(localStorage.getItem(PRESET_KEY)||'{}');}catch(e){return{};}}
+function savePreset(name){const all=loadPresets();const cfg={};PRESET_UI_KEYS.forEach(k=>cfg[k]=JSON.parse(JSON.stringify(state[k])));all[name]=cfg;localStorage.setItem(PRESET_KEY,JSON.stringify(all));}
+function applyPreset(name){const all=loadPresets();const cfg=all[name];if(!cfg)return;PRESET_UI_KEYS.forEach(k=>{if(cfg[k]!==undefined)state[k]=JSON.parse(JSON.stringify(cfg[k]));});buildControls();scheduleRender();}
+function deletePreset(name){const all=loadPresets();delete all[name];localStorage.setItem(PRESET_KEY,JSON.stringify(all));}
 document.getElementById('btnTpl').onclick=()=>{
  const items=[['经典相机水印','{make}  {model}\n{focal}  {aperture}  {shutter}  {iso}','模糊卡片→左右分离'],
   ['极简白字底部','{aperture}  {shutter}  {iso}','文字水印→左下'],
   ['品牌标+参数（模糊卡）','{make} {model}','模糊卡片 + 字段模板「品牌标 / F / S / ISO」'],
   ['日期纪念','{camera}\n{date}','文字水印→右下']];
- openModal(L('模板库（一键套用，替代代码插件）','Template library'),items.map(it=>`<div class="preset-line"><b>${it[0]}</b><span>${it[2]||''}</span></div>`).join('')+
-  '<p style="color:var(--dim);font-size:11.5px;margin-top:8px">'+L('点击条目把模板填入文字框；样式请到右侧切换。','Click to fill the template.')+'</p>');
+ const presetList=loadPresets();const presetNames=Object.keys(presetList);
+  const presetHtml='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"><b>'+L('我的配置预设','My presets')+'</b> '+(presetNames.length?'':'<span style="color:var(--dim)">'+L('（暂无）','(none)')+'</span>')+
+   presetNames.map(n=>'<div class="preset-line" data-preset="'+n.replace(/"/g,'&quot;')+'"><b>'+n+'</b><span style="color:var(--accent);cursor:pointer" data-del="'+n.replace(/"/g,'&quot;')+'">'+L('删除','Delete')+'</span></div>').join('')+
+   '<div style="margin-top:6px"><input id="presetNameInput" placeholder="'+L('输入预设名','Preset name')+'" style="width:60%;padding:4px 8px"><button id="presetSaveBtn" style="padding:4px 12px;margin-left:6px">'+L('保存当前配置','Save current')+'</button></div></div>';
+  openModal(L('模板库（一键套用，替代代码插件）','Template library'),items.map(it=>'<div class="preset-line"><b>'+it[0]+'</b><span>'+(it[2]||'')+'</span></div>').join('')+
+   '<p style="color:var(--dim);font-size:11.5px;margin-top:8px">'+L('点击条目把模板填入文字框；样式请到右侧切换。','Click to fill the template.')+'</p>'+presetHtml);
+  // 预设加载/删除/保存
+  setTimeout(()=>{
+   document.querySelectorAll('#modalBody [data-preset]').forEach(d=>d.onclick=e=>{if(e.target.dataset.del)return;applyPreset(d.dataset.preset);modalMask.classList.remove('open');});
+   document.querySelectorAll('#modalBody [data-del]').forEach(d=>d.onclick=e=>{e.stopPropagation();deletePreset(d.dataset.del);document.getElementById('btnTpl').click();});
+   const sb=document.getElementById('presetSaveBtn');if(sb)sb.onclick=()=>{const inp=document.getElementById('presetNameInput');const nm=(inp.value||'').trim();if(!nm){alert(L('请输入预设名','Enter a preset name'));return;}savePreset(nm);document.getElementById('btnTpl').click();};
+  },50);
  [...document.querySelectorAll('#modalBody .preset-line')].forEach((d,i)=>d.onclick=()=>{state.template=items[i][1];document.getElementById('tplInput').value=state.template;modalMask.classList.remove('open');scheduleRender();});
 };
 const CWM_AUTHOR='shiraijikuu';
@@ -1535,11 +1581,19 @@ async function checkUpdate(silent){
    const rebuilt=cmp(remote,APP_VERSION)===0&&remoteBuild>APP_BUILD;
    if(newer||rebuilt){
     const dd=j.downloads||{};const isMob=/android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+    const isElectron=/Electron/i.test(navigator.userAgent);
     const url=(isMob?dd.android:dd.windows)||j.download_url||j.url||'https://github.com/shiraijikuu/camera-watermark-android/releases';
     const title=newer?L('发现新版本 v'+remote,'New version v'+remote):L('发现修订更新 v'+remote+'（build '+remoteBuild+'）','Revised build v'+remote+' (build '+remoteBuild+')');
-    const body=newer?L('当前版本 v'+APP_VERSION+'，最新版本 v'+remote+'。\n\n是否前往下载？','Current v'+APP_VERSION+', latest v'+remote+'.\n\nGo to download?')
-                    :L('当前为 v'+APP_VERSION+'（build '+APP_BUILD+'），检测到同版本修订 build '+remoteBuild+'（内容已更新）。\n\n是否前往下载？','Current v'+APP_VERSION+' (build '+APP_BUILD+'), revised build '+remoteBuild+' available.\n\nGo to download?');
-    showModal(title,body,[{text:L('稍后','Later'),cls:''},{text:L('下载','Download'),cls:'primary',onclick:()=>{openExternal(url);}}]);
+    if(newer&&isElectron){
+     // 语义版本变化：main.js 的 electron-updater 已在后台自动下载，下载完弹重启框
+     const autoBody=L('当前版本 v'+APP_VERSION+'，最新版本 v'+remote+'。\n\n新版本正在后台自动下载，下载完成后将提示重启安装。','Current v'+APP_VERSION+', latest v'+remote+'.\n\nNew version is downloading in the background. You will be prompted to restart when ready.');
+     showModal(title,autoBody,[{text:L('确定','OK'),cls:'primary'}]);
+    }else{
+     // Android/PWA 手动下载；Electron 同版本 build 修订也手动下载（autoUpdater 只认语义版本）
+     const body=newer?L('当前版本 v'+APP_VERSION+'，最新版本 v'+remote+'。\n\n是否前往下载？','Current v'+APP_VERSION+', latest v'+remote+'.\n\nGo to download?')
+                     :L('当前为 v'+APP_VERSION+'（build '+APP_BUILD+'），检测到同版本修订 build '+remoteBuild+'（内容已更新）。\n\n是否前往下载？','Current v'+APP_VERSION+' (build '+APP_BUILD+'), revised build '+remoteBuild+' available.\n\nGo to download?');
+     showModal(title,body,[{text:L('稍后','Later'),cls:''},{text:L('下载','Download'),cls:'primary',onclick:()=>{openExternal(url);}}]);
+    }
    }else if(!silent){
     showModal(L('已是最新','Up to date'),L('当前版本 v'+APP_VERSION+'（build '+APP_BUILD+'）已是最新版本。','Current v'+APP_VERSION+' (build '+APP_BUILD+') is the latest.'),[{text:L('确定','OK'),cls:'primary'}]);
    }
@@ -1565,6 +1619,33 @@ bindStatic();buildControls();fillTheme();applyI18n();
 /* PWA Service Worker：仅在 http(s) 浏览器注册（原生 App 已离线、file:// 不支持，均跳过，避免缓存旧内核） */
 if(!isNativeApp()&&location.protocol.indexOf('http')===0&&'serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
 applyView();buildList();
+// 画框模式：预览照片区域拖拽调整偏移
+let _frameDrag=null;
+cv.addEventListener('pointerdown',e=>{
+  if(state.style!=='frame')return;const ph=curPhoto();if(!ph)return;
+  const rect=cv.getBoundingClientRect();const sx=cv.width/rect.width,sy=cv.height/rect.height;
+  const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
+  const t=getFrame(state.frameTpl),o=frameOpts();
+  const full=frameOutSize(ph.src.width,ph.src.height,t,o);
+  const rv=pickRatioVal(state.exportRatio,full.W,full.H);if(rv)o.ratio=rv;
+  const g=frameGeometry(ph._W||full.W,ph._H||full.H,t,o);
+  const[px,py,qx,qy]=g.photo;
+  if(mx>=px&&mx<=qx&&my>=py&&my<=qy){_frameDrag={sx:mx,sy:my,ox:state.framePhotoOffX,oy:state.framePhotoOffY};cv.setPointerCapture(e.pointerId);e.preventDefault();}
+});
+cv.addEventListener('pointermove',e=>{
+  if(!_frameDrag)return;const ph=curPhoto();if(!ph)return;
+  const rect=cv.getBoundingClientRect();const sx=cv.width/rect.width,sy=cv.height/rect.height;
+  const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
+  const t=getFrame(state.frameTpl),o=frameOpts();
+  const full=frameOutSize(ph.src.width,ph.src.height,t,o);
+  const g=frameGeometry(ph._W||full.W,ph._H||full.H,t,o);
+  const pw=g.photo[2]-g.photo[0],phh=g.photo[3]-g.photo[1];
+  state.framePhotoOffX=clamp(_frameDrag.ox+(mx-_frameDrag.sx)/Math.max(1,pw)*2,-1,1);
+  state.framePhotoOffY=clamp(_frameDrag.oy+(my-_frameDrag.sy)/Math.max(1,phh)*2,-1,1);
+  scheduleRender();
+});
+cv.addEventListener('pointerup',()=>{_frameDrag=null;});
+cv.addEventListener('pointercancel',()=>{_frameDrag=null;});
 mainEl.dataset.over=L('松开导入照片','Drop to import');
 setStatus(L('就绪','Ready'));
 /*__PART2__*/
