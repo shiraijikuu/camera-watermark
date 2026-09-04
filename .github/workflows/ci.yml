@@ -40,6 +40,7 @@ jobs:
           mkdir -p plugins plugin-repos
           git clone --depth 1 https://github.com/shiraijikuu/camera-watermark-blur-card.git plugins/blur-card
           git clone --depth 1 https://github.com/shiraijikuu/camera-watermark-image-watermark.git plugin-repos/image-watermark
+          git clone --depth 1 https://github.com/shiraijikuu/camera-watermark-image-watermark.git plugins/image-watermark
 
       - name: Compile check
         run: python -m py_compile app.py photo.py lang.py
