@@ -466,7 +466,7 @@ if(!CanvasRenderingContext2D.prototype.roundRect){CanvasRenderingContext2D.proto
 /* ================= i18n ================= */
 const I18N={zh:{tagline:'照片水印工具',tplLib:'模板库',about:'关于',checkUpdate:'检查更新',language:'语言',export:'导出当前',phoneView:'手机形态',backDesktop:'返回桌面',
  photos:'照片',import:'导入照片',fit:'适',dropHint:'拖入照片 · 滚轮缩放 · 拖空白平移 · 拖水印改位置',dropHintTouch:'单指拖空白平移 · 双指捏合缩放 · 拖文字水印改位置',collapse:'收起',
- g_style:'水印样式',style_frame:'画框模板',g_frame:'画框模板',f_tpl:'模板',f_logo:'品牌标',f_model:'型号',f_params:'拍摄参数',f_lens:'镜头',f_date:'日期',tab_style:'样式',tab_param:'参数',tab_export:'导出',tab_edit:'编辑',nb_text:'水印文字',nb_style:'样式',nb_image:'图片水印',nb_pos:'位置',nb_deco:'装饰',nb_export:'导出',selAll:'全选',selNone:'全不选',compare:'对比原图',listHead:'文件名 / 相机 · 参数',style_text:'文字水印',style_blur:'模糊卡片',g_text:'文字内容',tplPreset:'模板预设',camOverride:'机型覆盖',
+ g_style:'水印样式',style_frame:'画框模板',g_frame:'画框模板',f_tpl:'模板',f_logo:'品牌标',f_model:'型号',f_params:'拍摄参数',f_lens:'镜头',f_date:'日期',f_pw:'主图占比',f_ib:'底栏高度',f_mg:'上下边距',tab_style:'样式',tab_param:'参数',tab_export:'导出',tab_edit:'编辑',nb_text:'水印文字',nb_style:'样式',nb_image:'图片水印',nb_pos:'位置',nb_deco:'装饰',nb_export:'导出',selAll:'全选',selNone:'全不选',compare:'对比原图',listHead:'文件名 / 相机 · 参数',style_text:'文字水印',style_blur:'模糊卡片',g_text:'文字内容',tplPreset:'模板预设',camOverride:'机型覆盖',
  g_font:'字体 / 文字',fontFamily:'字体',loadFont:'加载',textColor:'颜色',bold:'加粗',g_pos:'位置（可在预览上拖动）',
  g_deco:'底色 / 描边 / 阴影',bgBlock:'文字底色块',bgColor:'底色',outline:'描边',outlineColor:'颜色',shadow:'阴影',
  g_blur:'模糊卡片',b_ratio:'画面比例',b_layout:'排版布局',b_shadow:'前景阴影',b_outline:'前景描边',b_badge:'参数标签框',b_overlay:'叠加图片水印',b_order:'字段模板',b_align:'参数对齐',
@@ -474,7 +474,7 @@ const I18N={zh:{tagline:'照片水印工具',tplLib:'模板库',about:'关于',c
  g_export:'导出',ex_format:'格式',ex_suffix:'文件名后缀',ex_ratio:'导出比例',ex_batch:'批量导出全部'},
 en:{tagline:'Photo Watermark',tplLib:'Templates',about:'About',checkUpdate:'Update',language:'Language',export:'Export',phoneView:'Phone',backDesktop:'Desktop',
  photos:'Photos',import:'Import',fit:'Fit',dropHint:'Drop photos · wheel zoom · drag bg to pan · drag watermark',dropHintTouch:'1-finger pan · pinch to zoom · drag watermark',collapse:'Close',
- g_style:'Style',style_frame:'Frame',g_frame:'Photo frame',f_tpl:'Template',f_logo:'Logo',f_model:'Camera',f_params:'Params',f_lens:'Lens',f_date:'Date',tab_style:'Style',tab_param:'Params',tab_export:'Export',tab_edit:'Edit',nb_text:'Text',nb_style:'Style',nb_image:'Image',nb_pos:'Position',nb_deco:'Decor',nb_export:'Export',selAll:'All',selNone:'None',compare:'Compare',listHead:'Name / Camera · Params',style_text:'Text',style_blur:'Blur card',g_text:'Text content',tplPreset:'Preset',camOverride:'Override camera',
+ g_style:'Style',style_frame:'Frame',g_frame:'Photo frame',f_tpl:'Template',f_logo:'Logo',f_model:'Camera',f_params:'Params',f_lens:'Lens',f_date:'Date',f_pw:'Photo width',f_ib:'Info bar height',f_mg:'Top/bottom margin',tab_style:'Style',tab_param:'Params',tab_export:'Export',tab_edit:'Edit',nb_text:'Text',nb_style:'Style',nb_image:'Image',nb_pos:'Position',nb_deco:'Decor',nb_export:'Export',selAll:'All',selNone:'None',compare:'Compare',listHead:'Name / Camera · Params',style_text:'Text',style_blur:'Blur card',g_text:'Text content',tplPreset:'Preset',camOverride:'Override camera',
  g_font:'Font / Text',fontFamily:'Font',loadFont:'Load',textColor:'Color',bold:'Bold',g_pos:'Position (draggable)',
  g_deco:'Bg / Outline / Shadow',bgBlock:'Text background',bgColor:'Bg',outline:'Outline',outlineColor:'Color',shadow:'Shadow',
  g_blur:'Blur card',b_ratio:'Canvas ratio',b_layout:'Layout',b_shadow:'FG shadow',b_outline:'FG outline',b_badge:'Badge boxes',b_overlay:'Overlay logo',b_order:'Field template',b_align:'Params align',
@@ -492,7 +492,7 @@ function setTheme(key){document.documentElement.dataset.theme=resolveTheme(key);
 
 /* ================= 状态（对齐 Python DEFAULT_SETTINGS + 插件） ================= */
 const DEF_TPL='{make}  {model}\n{focal}  {aperture}  {shutter}  {iso}';
-const APP_VERSION='3.0';const APP_BUILD=7; // 单调递增：每次发版(含同版本修订)+1，与安卓 versionCode 对齐，用于同版本更新检测
+const APP_VERSION='3.0';const APP_BUILD=8; // 单调递增：每次发版(含同版本修订)+1，与安卓 versionCode 对齐，用于同版本更新检测
 const SOCIAL={douyin:'https://v.douyin.com/aySgkT0fxTQ/',bilibili:'https://b23.tv/yJr6O00',github:'https://github.com/shiraijikuu'}; // 顶部社交链接
 const UPDATE_URL='https://cdn.jsdelivr.net/gh/shiraijikuu/camera-watermark-android@main/update.json';
 const state={
@@ -1339,6 +1339,18 @@ function hitImageMark(e,rect){
   for(let k=ph._imgRects.length-1;k>=0;k--){const r=ph._imgRects[k];
     if(lx>=r.x-pad&&lx<=r.x+r.w+pad&&ly>=r.y-pad&&ly<=r.y+r.h+pad)return {idx:r.i,gx:lx-r.x,gy:ly-r.y,w:r.w,h:r.h};}
   return null;}
+function hitFramePhoto(e,rect){
+  if(state.style!=='frame')return false;
+  const ph=curPhoto();if(!ph||!ph._W)return false;
+  const lx=(e.clientX-rect.left)/rect.width*ph._W,ly=(e.clientY-rect.top)/rect.height*ph._H;
+  const t=getFrame(state.frameTpl),o=frameOpts();
+  const full=frameOutSize(ph.src.width,ph.src.height,t,o);
+  const rv=pickRatioVal(state.exportRatio,full.W,full.H);if(rv)o.ratio=rv;
+  const g=frameGeometry(ph._W,ph._H,t,o);
+  const[px,py,qx,qy]=g.photo;
+  const pad=(document.body.classList.contains('device')?18:4)*ph._W/Math.max(1,rect.width);
+  return lx>=px-pad&&lx<=qx+pad&&ly>=py-pad&&ly<=qy+pad;
+}
 stage.addEventListener('pointerdown',e=>{
   if(e.target.closest('.zoombar'))return;
   try{stage.setPointerCapture(e.pointerId);}catch(_){}
@@ -1347,7 +1359,9 @@ stage.addEventListener('pointerdown',e=>{
     pinch={d:pDist(a,b),mx:m.x,my:m.y,z:state.zoom};drag=null;preview.classList.remove('grabbing');return;}
   if(pointers.size>2)return;
   const rect=preview.getBoundingClientRect();
-  if(hitTextMark(e,rect)){const fx=(e.clientX-rect.left)/rect.width,fy=(e.clientY-rect.top)/rect.height;
+  if(hitFramePhoto(e,rect)){const fx=(e.clientX-rect.left)/rect.width,fy=(e.clientY-rect.top)/rect.height;
+    drag={mode:'framePhoto',fx,fy,ox:state.framePhotoOffX,oy:state.framePhotoOffY};}
+  else if(hitTextMark(e,rect)){const fx=(e.clientX-rect.left)/rect.width,fy=(e.clientY-rect.top)/rect.height;
     drag={mode:'wm',fx,fy,ox:state.offsetXPct,oy:state.offsetYPct};}
   else{const im=hitImageMark(e,rect);
     drag=im?{mode:'img',idx:im.idx,gx:im.gx,gy:im.gy,w:im.w,h:im.h}:{mode:'pan',x:e.clientX,y:e.clientY};}
@@ -1363,7 +1377,15 @@ stage.addEventListener('pointermove',e=>{
     state.panX+=nm.x-pinch.mx;state.panY+=nm.y-pinch.my;
     pinch.d=nd;pinch.mx=nm.x;pinch.my=nm.y;pinch.z=nz;setZoom(nz);return;}
   if(!drag)return;const ph=curPhoto();const rect=preview.getBoundingClientRect();
-  if(drag.mode==='wm'&&ph){const fx=(e.clientX-rect.left)/rect.width,fy=(e.clientY-rect.top)/rect.height;
+  if(drag.mode==='framePhoto'&&ph){const fx=(e.clientX-rect.left)/rect.width,fy=(e.clientY-rect.top)/rect.height;
+   const t=getFrame(state.frameTpl),o=frameOpts();
+   const full=frameOutSize(ph.src.width,ph.src.height,t,o);
+   const g=frameGeometry(ph._W,ph._H,t,o);
+   const pw=g.photo[2]-g.photo[0],phh=g.photo[3]-g.photo[1];
+   state.framePhotoOffX=clamp(drag.ox+(fx-drag.fx)*ph._W/Math.max(1,pw)*2,-1,1);
+   state.framePhotoOffY=clamp(drag.oy+(fy-drag.fy)*ph._H/Math.max(1,phh)*2,-1,1);
+   scheduleRender();}
+  else if(drag.mode==='wm'&&ph){const fx=(e.clientX-rect.left)/rect.width,fy=(e.clientY-rect.top)/rect.height;
    state.offsetXPct=drag.ox+(fx-drag.fx)*100;state.offsetYPct=drag.oy+(fy-drag.fy)*100;
    syncSlider('offsetXPct');syncSlider('offsetYPct');scheduleRender();}
   else if(drag.mode==='img'&&ph){const fx=(e.clientX-rect.left)/rect.width,fy=(e.clientY-rect.top)/rect.height;
@@ -1619,33 +1641,6 @@ bindStatic();buildControls();fillTheme();applyI18n();
 /* PWA Service Worker：仅在 http(s) 浏览器注册（原生 App 已离线、file:// 不支持，均跳过，避免缓存旧内核） */
 if(!isNativeApp()&&location.protocol.indexOf('http')===0&&'serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
 applyView();buildList();
-// 画框模式：预览照片区域拖拽调整偏移
-let _frameDrag=null;
-cv.addEventListener('pointerdown',e=>{
-  if(state.style!=='frame')return;const ph=curPhoto();if(!ph)return;
-  const rect=cv.getBoundingClientRect();const sx=cv.width/rect.width,sy=cv.height/rect.height;
-  const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
-  const t=getFrame(state.frameTpl),o=frameOpts();
-  const full=frameOutSize(ph.src.width,ph.src.height,t,o);
-  const rv=pickRatioVal(state.exportRatio,full.W,full.H);if(rv)o.ratio=rv;
-  const g=frameGeometry(ph._W||full.W,ph._H||full.H,t,o);
-  const[px,py,qx,qy]=g.photo;
-  if(mx>=px&&mx<=qx&&my>=py&&my<=qy){_frameDrag={sx:mx,sy:my,ox:state.framePhotoOffX,oy:state.framePhotoOffY};cv.setPointerCapture(e.pointerId);e.preventDefault();}
-});
-cv.addEventListener('pointermove',e=>{
-  if(!_frameDrag)return;const ph=curPhoto();if(!ph)return;
-  const rect=cv.getBoundingClientRect();const sx=cv.width/rect.width,sy=cv.height/rect.height;
-  const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
-  const t=getFrame(state.frameTpl),o=frameOpts();
-  const full=frameOutSize(ph.src.width,ph.src.height,t,o);
-  const g=frameGeometry(ph._W||full.W,ph._H||full.H,t,o);
-  const pw=g.photo[2]-g.photo[0],phh=g.photo[3]-g.photo[1];
-  state.framePhotoOffX=clamp(_frameDrag.ox+(mx-_frameDrag.sx)/Math.max(1,pw)*2,-1,1);
-  state.framePhotoOffY=clamp(_frameDrag.oy+(my-_frameDrag.sy)/Math.max(1,phh)*2,-1,1);
-  scheduleRender();
-});
-cv.addEventListener('pointerup',()=>{_frameDrag=null;});
-cv.addEventListener('pointercancel',()=>{_frameDrag=null;});
 mainEl.dataset.over=L('松开导入照片','Drop to import');
 setStatus(L('就绪','Ready'));
 /*__PART2__*/
